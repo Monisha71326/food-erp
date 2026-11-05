@@ -49,7 +49,7 @@ export default function LoginPage({ onLogin, onRegister, prefill }) {
           <div className="rg-card">
             <header className="rg-head">
               <p className="rg-eyebrow"><span /> Welcome back</p>
-              <h2>Sign in to continue</h2>
+              <h2>Sign in to continueee</h2>
             </header>
 
             <form className="rg-body" onSubmit={submit} noValidate>
