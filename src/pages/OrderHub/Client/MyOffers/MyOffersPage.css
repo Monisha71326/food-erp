@@ -1,0 +1,4 @@
+.my-offers-page .offer-code { font-size: 15px; color: var(--maroon); }
+.my-offers-page .offer-pct { font-size: 24px; font-weight: 800; margin: 10px 0 4px; }
+.my-offers-page .offer-empty { text-align: center; padding: 20px 0; }
+.my-offers-page .offer-on { font-size: 13px; font-weight: 600; margin: 0 0 6px; }

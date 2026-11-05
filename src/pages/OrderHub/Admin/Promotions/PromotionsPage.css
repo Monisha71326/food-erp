@@ -1,0 +1,115 @@
+/* Promotions page - uses the global tokens so dark mode works automatically */
+.promotions-page { --pr-tint: rgba(154, 15, 46, 0.08); --pr-line: rgba(154, 15, 46, 0.35); }
+.promotions-page .sum-strip { margin-bottom: 14px; }
+
+/* ---------- table cells ---------- */
+.promotions-page .pr-code { display: inline-flex; align-items: center; gap: 7px; font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 700; color: var(--maroon); background: var(--pr-tint); border: 1px dashed var(--pr-line); padding: 4px 9px; border-radius: 7px; white-space: nowrap; }
+.promotions-page .pr-code i { font-size: 11px; }
+.promotions-page .pr-off { font-weight: 800; font-size: 15px; white-space: nowrap; }
+.promotions-page .pr-off small { font-size: 9.5px; font-weight: 700; color: var(--muted); letter-spacing: .06em; }
+.promotions-page .pr-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.promotions-page .pr-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.promotions-page .pr-chip.gray { background: #eceff5; color: #4a5575; }
+.promotions-page .pr-chip.blue { background: #dfeafd; color: #2459d6; }
+.promotions-page .pr-chip.all { background: #dcf5e6; color: #0f8f45; }
+.promotions-page .pr-chip.more { background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: help; }
+.app.dark .promotions-page .pr-chip.gray { background: #243055; color: #c4ccE4; }
+.app.dark .promotions-page .pr-chip.blue { background: rgba(60, 110, 230, .22); color: #9db9ff; }
+.app.dark .promotions-page .pr-chip.all { background: rgba(18, 161, 80, .2); color: #6fe0a0; }
+.promotions-page .pr-actions { display: inline-flex; gap: 6px; }
+.promotions-page .pr-actions button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); display: grid; place-items: center; font-size: 12px; transition: .15s; }
+.promotions-page .pr-actions button:hover { color: var(--maroon); border-color: var(--maroon); background: var(--pr-tint); }
+.promotions-page .pr-actions button.del:hover { color: #c8102e; }
+.promotions-page .pr-flash { font-size: 12px; font-weight: 600; }
+.promotions-page .pr-flash.ok { color: #0f8f45; }
+.promotions-page .pr-flash.bad { color: #c8102e; }
+
+/* ---------- builder layout ---------- */
+.promotions-page .pr-builder { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+.promotions-page .pr-form { margin-bottom: 0; padding: 22px; }
+.promotions-page .pr-step { display: flex; gap: 12px; align-items: flex-start; margin: 22px 0 12px; }
+.promotions-page .hub-card-head + .pr-step { margin-top: 0; }
+.promotions-page .pr-step h4 { font-size: 14px; font-weight: 700; margin: 0; }
+.promotions-page .pr-step p { font-size: 12px; margin: 2px 0 0; }
+.promotions-page .pr-num { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #a1122f, #85102a); box-shadow: 0 4px 10px rgba(154, 15, 46, .3); }
+
+.promotions-page .pr-details { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 12px; align-items: end; }
+.promotions-page .pr-details input { height: 40px; }
+.promotions-page .pr-details .pr-note { grid-column: 1 / -1; }
+.promotions-page .pr-presets { display: flex; gap: 6px; }
+.promotions-page .pr-presets button { height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 12.5px; font-weight: 700; transition: .15s; }
+.promotions-page .pr-presets button:hover { border-color: var(--maroon); color: var(--maroon); }
+.promotions-page .pr-presets button.on { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+/* segmented switch */
+.promotions-page .pr-seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 11px; background: var(--bg); border: 1px solid var(--border); }
+.promotions-page .pr-seg button { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; transition: .15s; }
+.promotions-page .pr-seg button:hover { color: var(--text); }
+.promotions-page .pr-seg button.on { background: var(--card); color: var(--maroon); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+
+/* picker */
+.promotions-page .pr-picker { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent); }
+.promotions-page .pr-picker-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.promotions-page .pr-search { flex: 1 1 180px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--muted); }
+.promotions-page .pr-search:focus-within { border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(154, 15, 46, .12); }
+.promotions-page .pr-search input { border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; width: 100%; }
+.promotions-page .pr-count { font-size: 12px; color: var(--muted); font-weight: 600; }
+.promotions-page .pr-link { background: none; border: 0; padding: 0; font-size: 12px; font-weight: 700; color: var(--maroon); cursor: pointer; }
+.promotions-page .pr-link:hover { text-decoration: underline; }
+.promotions-page .pr-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; padding: 2px; }
+.promotions-page .pr-tile { position: relative; display: flex; align-items: center; gap: 11px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--card); color: var(--text); transition: .15s; }
+.promotions-page .pr-tile:hover { border-color: var(--pr-line); transform: translateY(-1px); }
+.promotions-page .pr-tile.on { border-color: var(--maroon); background: var(--pr-tint); }
+.promotions-page .pr-tile-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.promotions-page .pr-tile-text b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.promotions-page .pr-tile-text small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.promotions-page .pr-avatar, .promotions-page .pr-prodicon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.promotions-page .pr-avatar { background: linear-gradient(135deg, #0e1a3a, #2b3f7a); color: #fff; border-radius: 50%; }
+.promotions-page .pr-prodicon { background: #dfeafd; color: #2459d6; font-size: 13px; }
+.app.dark .promotions-page .pr-prodicon { background: rgba(60, 110, 230, .22); color: #9db9ff; }
+.promotions-page .pr-tick { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; border: 1.5px solid var(--border); color: transparent; transition: .15s; }
+.promotions-page .pr-tile.on .pr-tick { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+.promotions-page .pr-none { grid-column: 1 / -1; text-align: center; padding: 14px 0; font-size: 13px; }
+
+.promotions-page .pr-submit { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.promotions-page .pr-submit .hub-notice { margin: 0; }
+
+/* ---------- live coupon preview ---------- */
+.promotions-page .pr-preview { position: sticky; top: 84px; }
+.promotions-page .pr-preview-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px 4px; }
+.promotions-page .pr-preview-label i { margin-right: 6px; color: var(--maroon); }
+.promotions-page .pr-ticket { border-radius: 16px; overflow: hidden; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(14, 26, 58, .12); }
+.promotions-page .pr-ticket-top { position: relative; padding: 20px 20px 22px; color: #fff; background: radial-gradient(circle at 90% 0%, rgba(255, 90, 120, .35), transparent 50%), linear-gradient(135deg, #0e1a3a 0%, #5a0f2e 100%); }
+.promotions-page .pr-ticket-tag { font-size: 10px; font-weight: 700; letter-spacing: .18em; opacity: .7; }
+.promotions-page .pr-ticket-code { display: block; margin-top: 6px; font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 22px; letter-spacing: .06em; word-break: break-all; }
+.promotions-page .pr-ticket-off { margin-top: 14px; font-size: 44px; line-height: 1; font-weight: 800; }
+.promotions-page .pr-ticket-off span { font-size: 15px; font-weight: 700; margin-left: 6px; letter-spacing: .08em; opacity: .85; }
+.promotions-page .pr-ticket-tear { position: relative; height: 0; border-top: 2px dashed var(--border); }
+.promotions-page .pr-ticket-tear i { position: absolute; top: -11px; width: 20px; height: 20px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); }
+.promotions-page .pr-ticket-tear i:first-child { left: -11px; }
+.promotions-page .pr-ticket-tear i:last-child { right: -11px; }
+.promotions-page .pr-ticket-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+.promotions-page .pr-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.promotions-page .pr-row span { color: var(--muted); }
+.promotions-page .pr-row span i { width: 16px; color: var(--maroon); }
+.promotions-page .pr-row b { text-align: right; font-weight: 700; }
+.promotions-page .pr-example { margin-top: 4px; padding: 12px 14px; border-radius: 12px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+.promotions-page .pr-example small { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.promotions-page .pr-example div { display: flex; align-items: center; gap: 10px; }
+.promotions-page .pr-example s { color: var(--muted); font-size: 14px; }
+.promotions-page .pr-example i { font-size: 11px; color: var(--muted); }
+.promotions-page .pr-example b { font-size: 22px; font-weight: 800; color: #0f8f45; }
+.promotions-page .pr-example em { font-style: normal; font-size: 12px; font-weight: 700; color: #0f8f45; }
+.promotions-page .pr-tips { margin: 14px 4px 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+.promotions-page .pr-tips li::before { content: "\2713"; color: var(--maroon); font-weight: 800; margin-right: 8px; }
+
+@media (max-width: 1100px) {
+  .promotions-page .pr-builder { grid-template-columns: 1fr; }
+  .promotions-page .pr-preview { position: static; order: -1; }
+}
+@media (max-width: 640px) {
+  .promotions-page .pr-details { grid-template-columns: 1fr; }
+  .promotions-page .pr-tiles { grid-template-columns: 1fr; }
+  .promotions-page .pr-seg { display: flex; width: 100%; }
+  .promotions-page .pr-seg button { flex: 1; justify-content: center; padding: 0 8px; }
+}

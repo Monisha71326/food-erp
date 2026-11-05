@@ -1,0 +1,102 @@
+/* My Invoices list. The full invoice page styles live in InvoiceDetail.css */
+.my-invoices-page { display: flex; flex-direction: column; gap: 16px; }
+
+/* "Exclude paid" pill toggle, sits next to the search box */
+.my-invoices-page .inv-hide-paid {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 8px 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.my-invoices-page .inv-hide-paid:hover {
+  border-color: var(--maroon);
+  box-shadow: 0 2px 10px rgba(154, 15, 46, .12);
+}
+.my-invoices-page .inv-hide-paid:active { transform: scale(.97); }
+
+/* real checkbox stays for keyboard + screen readers, just hidden visually */
+.my-invoices-page .inv-hide-paid input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* custom tick box */
+.my-invoices-page .inv-hide-paid-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  transition: background .18s ease, border-color .18s ease;
+}
+.my-invoices-page .inv-hide-paid-box i {
+  transform: scale(0);
+  transition: transform .18s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* pending count badge */
+.my-invoices-page .inv-hide-paid-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, .12);
+  color: #b45309;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: background .18s ease, color .18s ease;
+}
+
+/* ticked state */
+.my-invoices-page .inv-hide-paid.on {
+  border-color: var(--maroon);
+  background: rgba(154, 15, 46, .07);
+  color: var(--maroon);
+}
+.my-invoices-page .inv-hide-paid.on .inv-hide-paid-box {
+  background: var(--maroon);
+  border-color: var(--maroon);
+}
+.my-invoices-page .inv-hide-paid.on .inv-hide-paid-box i { transform: scale(1); }
+.my-invoices-page .inv-hide-paid.on .inv-hide-paid-count {
+  background: var(--maroon);
+  color: #fff;
+}
+
+/* keyboard focus ring */
+.my-invoices-page .inv-hide-paid:has(input:focus-visible) {
+  outline: 2px solid var(--maroon);
+  outline-offset: 2px;
+}
+
+/* dark mode */
+.app.dark .my-invoices-page .inv-hide-paid.on { background: rgba(255, 255, 255, .06); color: #fff; }
+.app.dark .my-invoices-page .inv-hide-paid-count { background: rgba(251, 191, 36, .16); color: #fbbf24; }
+
+/* phone */
+@media (max-width: 640px) {
+  .my-invoices-page .inv-hide-paid { min-height: 36px; font-size: 12.5px; }
+}

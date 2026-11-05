@@ -1,0 +1,160 @@
+/* ListPage action buttons (+ New, more) */
+
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px;
+  border: 0; border-radius: 9px; color: #fff; font-size: 13px; font-weight: 600;
+  background: linear-gradient(90deg, #a1122f, #85102a);
+  box-shadow: 0 6px 14px rgba(154, 15, 46, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(154, 15, 46, 0.38); }
+.btn-primary:hover i { transform: rotate(90deg); }
+.btn-primary i { transition: transform 0.25s ease; }
+.btn-ghost {
+  width: 38px; height: 38px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--card); display: grid; place-items: center; transition: background 0.15s;
+}
+.btn-ghost:hover { background: var(--bg); }
+
+
+/* Database-backed create/edit forms */
+.erp-modal-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(10,18,38,.58);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box}
+.erp-modal{width:min(820px,100%);max-height:min(88vh,900px);max-height:min(88dvh,900px);overflow:auto;background:var(--card,#fff);color:var(--text,#172033);border:1px solid var(--border,#e5e7eb);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.25);animation:erp-modal-in .18s ease-out}
+@keyframes erp-modal-in{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.erp-modal-head{display:flex;justify-content:space-between;gap:18px;padding:24px 26px 18px;border-bottom:1px solid var(--border,#e5e7eb)}
+.erp-modal-head h2{font-size:23px;margin:4px 0 7px}.erp-modal-head p:not(.eyebrow){font-size:13px;color:var(--muted,#667085);margin:0}
+.erp-modal-close{border:0;background:var(--bg,#f4f6fa);border-radius:9px;width:36px;height:36px;font-size:24px;cursor:pointer;flex:none;color:inherit}
+.erp-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;padding:23px 26px}
+.erp-form-grid label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px;font-weight:650;color:var(--text,#344054)}
+.erp-form-grid label.wide{grid-column:1/-1}
+.erp-form-grid label span b{color:#b42318}
+.erp-form-grid input,.erp-form-grid select,.erp-form-grid textarea{width:100%;box-sizing:border-box;border:1px solid var(--border,#d0d5dd);border-radius:9px;background:var(--bg,#fff);color:var(--text,#172033);padding:11px 12px;font:inherit;font-size:13px;outline:none;min-height:42px}
+.erp-form-grid textarea{resize:vertical;min-height:80px}
+.erp-form-grid input:focus,.erp-form-grid select:focus,.erp-form-grid textarea:focus{border-color:#5268c7;box-shadow:0 0 0 3px rgba(82,104,199,.12)}
+.erp-modal-foot{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:17px 26px 23px;border-top:1px solid var(--border,#e5e7eb)}
+.erp-cancel{height:38px;padding:0 17px;border:1px solid var(--border,#d0d5dd);border-radius:9px;background:transparent;color:inherit;cursor:pointer}
+.erp-modal-foot button:disabled{opacity:.65;cursor:wait}
+.erp-row-actions{display:flex;align-items:center;gap:6px}
+.erp-row-actions button{height:30px;width:32px;border:1px solid var(--border,#e5e7eb);border-radius:7px;background:var(--card,#fff);color:var(--text,#344054);cursor:pointer}
+.erp-row-actions button:hover{background:var(--bg,#f4f6fa)}
+.erp-row-actions button:last-child:hover{color:#b42318;border-color:#f2b8b5}
+.erp-notice{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;margin:0 0 14px;border:1px solid #a6dfbf;border-radius:9px;background:#edfff4;color:#176b3a;font-size:13px}
+.erp-notice button{border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}
+.erp-error{padding:12px 14px;margin:12px 0;color:#b42318;background:#fff2f0;border:1px solid #f4b8b2;border-radius:9px;font-size:13px}
+.erp-error button{margin-left:12px;border:1px solid currentColor;background:transparent;border-radius:6px;padding:5px 10px;color:inherit;cursor:pointer}
+
+/* ---- "Exclude paid" pill toggle (shown when a page passes excludePaid), sits next to the search box ---- */
+.lp-hide-paid {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 8px 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.lp-hide-paid:hover {
+  border-color: var(--maroon);
+  box-shadow: 0 2px 10px rgba(154, 15, 46, .12);
+}
+.lp-hide-paid:active { transform: scale(.97); }
+
+/* real checkbox stays for keyboard + screen readers, just hidden visually */
+.lp-hide-paid input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* custom tick box */
+.lp-hide-paid-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  transition: background .18s ease, border-color .18s ease;
+}
+.lp-hide-paid-box i {
+  transform: scale(0);
+  transition: transform .18s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* pending count badge */
+.lp-hide-paid-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, .12);
+  color: #b45309;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: background .18s ease, color .18s ease;
+}
+
+/* ticked state */
+.lp-hide-paid.on {
+  border-color: var(--maroon);
+  background: rgba(154, 15, 46, .07);
+  color: var(--maroon);
+}
+.lp-hide-paid.on .lp-hide-paid-box {
+  background: var(--maroon);
+  border-color: var(--maroon);
+}
+.lp-hide-paid.on .lp-hide-paid-box i { transform: scale(1); }
+.lp-hide-paid.on .lp-hide-paid-count {
+  background: var(--maroon);
+  color: #fff;
+}
+
+/* keyboard focus ring */
+.lp-hide-paid:has(input:focus-visible) {
+  outline: 2px solid var(--maroon);
+  outline-offset: 2px;
+}
+
+/* dark mode */
+.app.dark .lp-hide-paid.on { background: rgba(255, 255, 255, .06); color: #fff; }
+.app.dark .lp-hide-paid-count { background: rgba(251, 191, 36, .16); color: #fbbf24; }
+
+/* phone */
+@media (max-width: 640px) {
+  .lp-hide-paid { min-height: 36px; font-size: 12.5px; }
+}
+@media(max-width:620px){.erp-modal-backdrop{padding:12px;align-items:center}.erp-modal{max-height:90vh;max-height:90dvh;border-radius:14px}.erp-modal-head{padding:18px}.erp-form-grid{grid-template-columns:1fr;padding:18px;gap:14px}.erp-form-grid label.wide{grid-column:auto}.erp-modal-foot{padding:15px 18px 18px;position:sticky;bottom:0;background:var(--card,#fff)}.erp-modal-head h2{font-size:20px}}
+/* Add this at the end of ListPage.css */
+.lp-filter {
+  height: 38px;
+  padding: 0 28px 0 12px;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: #3b4256;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.lp-filter.on { border-color: #9d1230; color: #9d1230; background: #fff5f7; font-weight: 600; }
+.lp-filter:focus-visible { outline: 2px solid #9d123055; outline-offset: 1px; }

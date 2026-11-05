@@ -1,0 +1,11 @@
+/* Shared keyframes + page entrance animation */
+
+.page-anim { animation: pageIn 0.35s ease both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- Respect reduced-motion setting ---- */
+@media (prefers-reduced-motion: reduce) {
+  .page-anim { animation: none !important; }
+}

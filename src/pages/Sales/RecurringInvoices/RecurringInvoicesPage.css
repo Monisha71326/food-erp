@@ -1,0 +1,6 @@
+/* Recurring Invoices page styles.
+   Everything here is scoped to .recurring-invoices-page, so it can never leak into other pages.
+   Put Recurring Invoices-only styles inside this block. */
+.recurring-invoices-page {
+  /* add Recurring Invoices-only styles here */
+}

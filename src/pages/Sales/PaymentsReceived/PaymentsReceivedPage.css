@@ -1,0 +1,6 @@
+/* Payments Received page styles.
+   Everything here is scoped to .payments-received-page, so it can never leak into other pages.
+   Put Payments Received-only styles inside this block. */
+.payments-received-page {
+  /* add Payments Received-only styles here */
+}

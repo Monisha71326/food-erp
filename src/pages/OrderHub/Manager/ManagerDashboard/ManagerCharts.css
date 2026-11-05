@@ -1,0 +1,74 @@
+.mg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+.mg-grid > * { min-width: 0; animation: mgUp .5s cubic-bezier(.2, .7, .2, 1) backwards; transition: transform .25s, box-shadow .25s, border-color .25s; }
+.mg-grid > :nth-child(2) { animation-delay: .07s; }
+.mg-grid > :nth-child(3) { animation-delay: .14s; }
+.mg-grid > :nth-child(4) { animation-delay: .21s; }
+.mg-grid > *:hover { transform: translateY(-4px); box-shadow: 0 16px 30px -18px rgba(15, 23, 42, .5); border-color: var(--maroon, #a1122f); }
+
+.mg-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.mg-head h3 { margin: 0; font-size: 14px; font-weight: 800; }
+.mg-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.mg-empty { margin: 0; padding: 26px 8px; text-align: center; font-size: 13px; color: var(--muted); border: 1px dashed var(--border); border-radius: 12px; }
+
+.mg-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.mg-axis { font-size: 9.5px; fill: var(--muted); }
+.mg-grid-line, .mg-svg .mg-grid { stroke: var(--border); }
+
+/* horizontal bars */
+.mg-hbars { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.mg-hbar-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; margin-bottom: 5px; }
+.mg-hbar-top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-hbar-track { height: 9px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+.mg-hbar-fill { height: 100%; border-radius: 99px; animation: mgWidth 1s cubic-bezier(.2, .7, .2, 1) backwards; }
+
+/* donut */
+.mg-donut-row { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.mg-donut { width: 150px; height: 150px; flex: none; }
+.mg-track { fill: none; stroke: var(--border); stroke-width: 14; opacity: .5; }
+.mg-seg { fill: none; stroke-width: 14; cursor: pointer; animation: mgDonut .9s cubic-bezier(.2, .7, .2, 1) backwards; transition: stroke-width .2s, opacity .2s; }
+.mg-donut:hover .mg-seg:not(:hover) { opacity: .45; }
+.mg-seg.on { stroke-width: 18; }
+.mg-donut-big { font-size: 20px; font-weight: 800; fill: currentColor; }
+.mg-donut-sub { font-size: 8px; fill: var(--muted); }
+.mg-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; width: 100%; }
+.mg-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; transition: background .15s; }
+.mg-legend li.on, .mg-legend li:hover { background: var(--bg); }
+.mg-legend i, .mg-gauge-foot i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.mg-legend span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* line */
+.mg-wrap { position: relative; }
+.mg-line { fill: none; stroke: #a1122f; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; animation: mgDraw 1.4s ease-out .2s backwards; }
+.mg-area { animation: mgFade 1s ease-out 1.2s backwards; }
+.mg-dot { fill: #a1122f; stroke: var(--card, #fff); stroke-width: 2; }
+.mg-pulse { fill: #a1122f; stroke: var(--card, #fff); stroke-width: 2; animation: mgFade .3s ease-out 1.5s backwards, mgPulse 1.8s ease-out 1.7s infinite; }
+.mg-tip {
+  position: absolute; top: 0; transform: translateX(-50%); pointer-events: none; display: grid; gap: 2px; white-space: nowrap;
+  background: var(--card, #fff); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font-size: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .16);
+}
+
+/* gauge */
+.mg-gauge-wrap { display: grid; gap: 10px; }
+.mg-gauge { width: 100%; max-width: 260px; margin: 0 auto; display: block; }
+.mg-gauge-track, .mg-gauge-val { fill: none; stroke-width: 16; stroke-linecap: round; }
+.mg-gauge-track { stroke: var(--border); opacity: .6; }
+.mg-gauge-val { stroke: url(#mgGauge); stroke-dasharray: 100; animation: mgGauge 1.5s cubic-bezier(.2, .7, .2, 1) .2s backwards; }
+.mg-gauge-big { font-size: 30px; font-weight: 800; fill: currentColor; }
+.mg-gauge-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.mg-gauge-foot span { display: inline-flex; align-items: center; gap: 6px; }
+
+@keyframes mgUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes mgWidth { from { width: 0; } }
+@keyframes mgDraw { from { stroke-dashoffset: 1; } }
+@keyframes mgFade { from { opacity: 0; } }
+@keyframes mgGauge { from { stroke-dashoffset: 100; } }
+@keyframes mgDonut { from { stroke-dasharray: 0 var(--c); } }
+@keyframes mgPulse { 0% { r: 4.5; stroke-width: 2; } 70%, 100% { r: 11; stroke-width: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mg-grid > *, .mg-hbar-fill, .mg-seg, .mg-line, .mg-area, .mg-pulse, .mg-gauge-val { animation: none; }
+}
+
+@media (max-width: 1280px) { .mg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .mg-grid { grid-template-columns: minmax(0, 1fr); } }

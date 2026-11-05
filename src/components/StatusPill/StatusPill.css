@@ -1,0 +1,15 @@
+/* StatusPill: small colored status badge */
+
+.pill {
+  display: inline-block; min-width: 68px; text-align: center;
+  padding: 4px 10px; border-radius: 6px; font-size: 10.5px; font-weight: 600;
+}
+.pill.red { background: #fde4e7; color: #c8102e; }
+.pill.green { background: #dcf5e6; color: #0f8f45; }
+.pill.blue { background: #dfeafd; color: #2459d6; }
+.pill.purple { background: #ece3fb; color: #6a2bd1; }
+.pill.orange { background: #fdeadb; color: #d9760f; }
+.pill.nowrap { white-space: nowrap; min-width: 0; }
+.pill.gray { background: #eceff5; color: #5b6685; }
+.app.dark .pill.gray { background: #243055; color: #aab4d0; }
+.pill i { font-size: 10px; margin-right: 2px; }

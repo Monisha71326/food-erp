@@ -1,0 +1,6 @@
+.pod-matching-page .pod-empty { text-align: center; padding: 20px 0; }
+.pod-matching-page .hub-notice { margin: 0 0 12px; }
+.pod-tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.pod-tbl th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); padding: 8px 6px; border-bottom: 1px solid var(--border); }
+.pod-tbl td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
+.pod-actions { margin-top: 16px; }

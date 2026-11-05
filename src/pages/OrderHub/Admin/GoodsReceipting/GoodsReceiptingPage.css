@@ -1,0 +1,97 @@
+.goods-receipting-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---------- Stat cards ---------- */
+.grp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.grp-stat {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.grp-stat:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16, 24, 40, 0.08); }
+.grp-stat i {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center; font-size: 17px;
+  background: #eef2ff; color: #4f46e5;
+}
+.grp-stat span { display: block; font-size: 12px; color: #6b7280; margin-bottom: 2px; }
+.grp-stat b { font-size: 22px; font-weight: 700; color: #111827; line-height: 1; }
+.grp-stat--warn i { background: #fff7ed; color: #ea580c; }
+.grp-stat--ok i   { background: #ecfdf5; color: #059669; }
+.grp-stat--info i { background: #eff6ff; color: #2563eb; }
+
+/* ---------- Line chips in table ---------- */
+.grp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.grp-chip {
+  padding: 3px 9px; border-radius: 999px;
+  background: #f3f4f6; color: #374151;
+  font-size: 12px; white-space: nowrap;
+}
+.grp-chip b { color: #4f46e5; }
+
+/* ---------- Modal ---------- */
+.grp-backdrop { backdrop-filter: blur(3px); animation: grp-fade .18s ease; }
+.grp-modal {
+  border-radius: 18px;
+  overflow: hidden;
+  animation: grp-pop .22s cubic-bezier(.2, .9, .3, 1.2);
+}
+.grp-head { display: flex; align-items: center; justify-content: space-between; }
+.grp-head small { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; }
+.grp-head h3 { margin: 2px 0 0; }
+
+/* Progress steps */
+.grp-steps { display: flex; align-items: center; padding: 14px 22px 4px; }
+.grp-step { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9ca3af; white-space: nowrap; }
+.grp-step span {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  background: #e5e7eb; color: #6b7280;
+}
+.grp-step--active { color: #ea580c; }
+.grp-step--active span { background: #ffedd5; color: #ea580c; box-shadow: 0 0 0 4px #fff7ed; }
+.grp-step--done { color: #059669; }
+.grp-step--done span { background: #059669; color: #fff; }
+.grp-line { flex: 1; height: 2px; margin: 0 10px; background: #e5e7eb; border-radius: 2px; }
+.grp-line--done { background: #059669; }
+
+/* Meta */
+.grp-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.grp-meta > div { padding: 10px 12px; background: #f9fafb; border-radius: 10px; }
+.grp-meta span { display: block; font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+
+/* Lines table */
+.grp-lines { width: 100%; border-collapse: collapse; }
+.grp-lines th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; padding: 10px 12px; background: #f9fafb; }
+.grp-lines td { padding: 11px 12px; border-bottom: 1px solid #f1f5f9; }
+.grp-lines tbody tr:hover { background: #fafafa; }
+.grp-lines tfoot td { border-bottom: 0; background: #f9fafb; font-size: 13px; }
+.grp-num { text-align: right !important; }
+.grp-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; background: #eef2ff; color: #4338ca;
+  padding: 2px 7px; border-radius: 6px;
+}
+
+/* Footer */
+.grp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff7ed; border-top: 1px solid #fed7aa; }
+.grp-foot span { color: #c2410c; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+@keyframes grp-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes grp-pop  { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) { .grp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) {
+  .grp-stats { grid-template-columns: 1fr; }
+  .grp-meta { grid-template-columns: 1fr; }
+  .grp-step { font-size: 0; gap: 0; }
+  .grp-step span { font-size: 12px; }
+}

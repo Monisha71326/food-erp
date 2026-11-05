@@ -1,0 +1,5 @@
+/* TableLink: blue clickable text inside tables */
+
+.table-link { color: #2459d6; font-weight: 600; }
+.app.dark .table-link { color: #7ba3ff; }
+.table-link:hover { text-decoration: underline; }

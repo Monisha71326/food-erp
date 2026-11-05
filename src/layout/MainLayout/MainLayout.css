@@ -1,0 +1,15 @@
+/* Page shell: content area next to the sidebar */
+
+.main { margin-left: var(--sidebar-w); transition: margin-left 0.2s ease; min-width: 0; }
+.app.is-collapsed .main { margin-left: var(--sidebar-w-collapsed); }
+.content { padding: 14px 22px 30px; }
+
+/* ---- Tablet (<= 900px) ---- */
+@media (max-width: 900px) {
+  .main, .app.is-collapsed .main { margin-left: 0; }
+}
+
+/* ---- Phone (<= 640px) ---- */
+@media (max-width: 640px) {
+  .content { padding: 12px; }
+}

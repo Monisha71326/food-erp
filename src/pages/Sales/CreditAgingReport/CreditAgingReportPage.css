@@ -1,0 +1,96 @@
+/* Credit Aging Report page. Everything is scoped under .credit-aging-page (see README: styling rules). */
+.credit-aging-page{padding:20px 24px 40px;color:inherit;font-size:14px}
+.credit-aging-page *{box-sizing:border-box}
+
+
+.credit-aging-page .car-card{border-radius:12px;border:1px solid rgba(127,127,127,.25);background:rgba(127,127,127,.05);margin-bottom:14px}
+.credit-aging-page .car-card:not(.car-table-wrap){padding:14px 18px}
+.credit-aging-page .car-bar{display:flex;overflow:hidden;border-radius:99px;background:rgba(127,127,127,.18)}
+.credit-aging-page .car-bar>div{height:100%}
+.credit-aging-page .car-bar-big{height:14px}
+.credit-aging-page .car-bar-small{height:5px;margin-top:6px;width:150px}
+.credit-aging-page .car-legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:12px;opacity:.85}
+.credit-aging-page .car-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.credit-aging-page .car-legend b{margin-left:3px}
+
+.credit-aging-page .car-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.credit-aging-page .car-search{padding:9px 12px;width:260px;max-width:100%;border-radius:8px;border:1px solid rgba(127,127,127,.35);background:rgba(127,127,127,.06);color:inherit;font-size:14px}
+.credit-aging-page .car-search:focus{outline:2px solid rgba(155,28,58,.6);outline-offset:1px}
+.credit-aging-page .car-chips{display:flex;gap:6px;flex-wrap:wrap}
+.credit-aging-page .car-chips button{padding:7px 12px;border-radius:99px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;cursor:pointer;font-size:12.5px;font-weight:600}
+.credit-aging-page .car-chips button em{font-style:normal;margin-left:6px;opacity:.6}
+.credit-aging-page .car-chips button.on{background:rgb(155,28,58);border-color:rgb(155,28,58);color:#fff}
+.credit-aging-page .car-chips button.on em{opacity:.85}
+
+.credit-aging-page .car-table-wrap{overflow-x:auto}
+.credit-aging-page .car-table{width:100%;border-collapse:collapse;min-width:1020px}
+.credit-aging-page .car-table th{position:sticky;top:0;text-align:left;padding:13px 12px;font-size:11.5px;letter-spacing:.04em;font-weight:700;background:rgba(127,127,127,.12);border-bottom:1px solid rgba(127,127,127,.3);white-space:nowrap;cursor:pointer;user-select:none}
+.credit-aging-page .car-table th:first-child{cursor:default}
+.credit-aging-page .car-table td{padding:12px;border-bottom:1px solid rgba(127,127,127,.18);vertical-align:middle}
+.credit-aging-page .car-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.credit-aging-page .car-table .zero{opacity:.35}
+.credit-aging-page .car-table .strong{font-weight:700}
+.credit-aging-page .car-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.credit-aging-page .car-row{cursor:pointer;transition:background .12s}
+.credit-aging-page .car-row:hover{background:rgba(155,28,58,.08)}
+.credit-aging-page .car-row.open{background:rgba(155,28,58,.1)}
+.credit-aging-page .car-client{display:flex;align-items:center;gap:12px}
+.credit-aging-page .car-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(135deg,rgb(155,28,58),rgb(90,20,80));flex:none}
+.credit-aging-page .car-name{font-weight:700}
+.credit-aging-page .car-sub{font-size:12px;opacity:.6}
+.credit-aging-page .car-badge{display:inline-block;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.credit-aging-page .car-badge.good{background:rgba(34,170,110,.18);color:rgb(34,170,110)}
+.credit-aging-page .car-badge.watch{background:rgba(235,150,20,.18);color:rgb(220,135,10)}
+.credit-aging-page .car-badge.high{background:rgba(225,95,40,.18);color:rgb(225,95,40)}
+.credit-aging-page .car-badge.critical{background:rgba(200,35,60,.2);color:rgb(215,45,70)}
+.credit-aging-page .car-detail td{background:rgba(127,127,127,.05)}
+.credit-aging-page .car-inner{width:100%;border-collapse:collapse;margin:4px 0}
+.credit-aging-page .car-inner th{position:static;cursor:default;background:transparent;font-size:11px;padding:8px 10px}
+.credit-aging-page .car-inner td{padding:8px 10px;border-bottom:1px dashed rgba(127,127,127,.25);background:transparent}
+.credit-aging-page .car-pill{padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.credit-aging-page .car-table tfoot td{padding:14px 12px;font-weight:700;background:rgba(127,127,127,.12);border-top:2px solid rgba(127,127,127,.35);border-bottom:0}
+.credit-aging-page .car-empty{text-align:center;padding:48px 12px!important;opacity:.75;line-height:1.7}
+.credit-aging-page .car-foot{margin-top:6px;font-size:12px;opacity:.55}
+
+@media print{
+  .credit-aging-page .car-actions, .credit-aging-page .car-toolbar{display:none!important}
+  .credit-aging-page .car-table-wrap{overflow:visible}
+  .credit-aging-page .car-table{min-width:0}
+}
+
+.credit-aging-page .car-sources{padding-right:12px;border-right:1px solid rgba(127,127,127,.3);margin-right:2px}
+
+/* ---------- banner (matches the Invoices page header) ---------- */
+.credit-aging-page .car-banner{position:relative;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:26px 30px;margin-bottom:18px;border-radius:20px;color:#fff;overflow:hidden;
+  background:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px) 0 0/18px 18px,linear-gradient(115deg,var(--navy,#0f1747) 0%,#1b1b5c 50%,#7d1236 100%);
+  border-bottom:3px solid var(--maroon,#c0264a);box-shadow:0 10px 30px rgba(15,23,71,.25)}
+.credit-aging-page .car-banner-icon{width:62px;height:62px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;flex:none;
+  background:rgba(255,255,255,.1);border:1.5px dashed rgba(255,255,255,.35)}
+.credit-aging-page .car-banner-text{flex:1;min-width:240px}
+.credit-aging-page .car-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.14em;
+  background:rgba(220,40,80,.18);border:1px solid rgba(220,40,80,.5);color:#fff}
+.credit-aging-page .car-eyebrow b{width:7px;height:7px;border-radius:50%;background:#ff4d6d;display:inline-block}
+.credit-aging-page .car-banner-text h2{margin:8px 0 0;font-size:34px;font-weight:800;letter-spacing:-.02em;color:#fff}
+.credit-aging-page .car-banner-text p{margin:4px 0 0;color:rgba(255,255,255,.75);max-width:560px}
+.credit-aging-page .car-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.credit-aging-page .car-actions button{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:12px;border:0;font-weight:700;font-size:14px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.credit-aging-page .car-actions button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.credit-aging-page .car-actions button:disabled{opacity:.5;cursor:not-allowed}
+.credit-aging-page .car-btn-primary{background:var(--maroon,#b3123a);color:#fff}
+.credit-aging-page .car-btn-white,.credit-aging-page .car-btn-icon{background:#fff;color:#1a1a2e}
+.credit-aging-page .car-btn-icon{width:42px;padding:0!important;justify-content:center}
+
+/* ---------- summary strip ---------- */
+.credit-aging-page .car-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;padding:18px 14px;margin-bottom:14px;border-radius:18px;
+  background:var(--card,rgba(127,127,127,.06));border:1px solid rgba(127,127,127,.2);box-shadow:0 4px 18px rgba(0,0,0,.06)}
+.credit-aging-page .car-stat{display:flex;align-items:center;gap:14px;padding:4px 14px}
+.credit-aging-page .car-stat + .car-stat{border-left:1px solid rgba(127,127,127,.18)}
+.credit-aging-page .car-stat-ico{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.credit-aging-page .car-stat small{display:block;font-size:12px;opacity:.65;font-weight:600}
+.credit-aging-page .car-stat strong{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.25}
+.credit-aging-page .car-stat em{font-style:normal;font-size:11.5px;opacity:.55}
+.credit-aging-page .t-orange{background:rgba(245,158,66,.18);color:#e8892b}
+.credit-aging-page .t-green{background:rgba(34,170,110,.18);color:#1fa86a}
+.credit-aging-page .t-amber{background:rgba(235,150,20,.18);color:#e0900f}
+.credit-aging-page .t-red{background:rgba(220,38,70,.16);color:#d92b4b}
+@media (max-width:900px){.credit-aging-page .car-stat + .car-stat{border-left:0}}

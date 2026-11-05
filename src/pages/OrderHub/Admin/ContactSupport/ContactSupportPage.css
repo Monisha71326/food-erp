@@ -1,0 +1,91 @@
+/* Contact Support page - all styles scoped under .contact-support-page */
+
+/* ---- Hero banner ---- */
+.contact-support-page .cs-hero {
+  display: flex; align-items: center; gap: 16px;
+  padding: 22px 24px; margin-bottom: 16px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #a1122f, #8a0d28);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(154, 15, 46, 0.25);
+}
+.contact-support-page .cs-hero-icon {
+  width: 52px; height: 52px; flex: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.18); font-size: 22px;
+}
+.contact-support-page .cs-hero h1 { margin: 0; font-size: 22px; font-weight: 700; color: #fff; }
+.contact-support-page .cs-hero p { margin: 4px 0 0; font-size: 13px; color: #fbd5dc; }
+
+/* ---- Contact tiles ---- */
+.contact-support-page .cs-tiles {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px;
+}
+.contact-support-page .cs-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.contact-support-page .cs-tile-icon {
+  width: 38px; height: 38px; flex: none; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(154, 15, 46, 0.1); color: var(--maroon);
+}
+.contact-support-page .cs-tile small { display: block; font-size: 12px; color: var(--muted, #6b7390); }
+.contact-support-page .cs-tile strong { display: block; font-size: 13px; color: var(--text); word-break: break-word; }
+
+/* ---- Main grid ---- */
+.contact-support-page .cs-grid {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start;
+}
+.contact-support-page .card { padding: 20px; }
+.contact-support-page h3 { margin: 0 0 12px; font-size: 15px; color: var(--text); }
+
+/* ---- Form ---- */
+.contact-support-page .cs-form label {
+  display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--text);
+}
+.contact-support-page .cs-form input,
+.contact-support-page .cs-form textarea {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text); font: inherit;
+}
+.contact-support-page .cs-form input:focus,
+.contact-support-page .cs-form textarea:focus { outline: 2px solid var(--maroon); outline-offset: 0; }
+
+.contact-support-page .cs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.contact-support-page .cs-chip {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--text); font-size: 12.5px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.contact-support-page .cs-chip:hover { background: rgba(154, 15, 46, 0.08); }
+.contact-support-page .cs-chip.active { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+.contact-support-page .cs-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.contact-support-page .cs-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border: 0; border-radius: 8px;
+  background: var(--maroon); color: #fff; font-weight: 600; cursor: pointer;
+}
+.contact-support-page .cs-ok { margin: 12px 0 0; color: #1a8f4c; font-size: 13px; }
+.contact-support-page .cs-err { margin: 12px 0 0; color: #d6334a; font-size: 13px; }
+
+/* ---- FAQ ---- */
+.contact-support-page .cs-faq-item { border-top: 1px solid var(--border); }
+.contact-support-page .cs-faq-q {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px 0; border: 0; background: transparent; color: var(--text);
+  font-size: 13px; font-weight: 500; text-align: left; cursor: pointer;
+}
+.contact-support-page .cs-faq-q i { font-size: 11px; transition: transform 0.2s ease; }
+.contact-support-page .cs-faq-item.open .cs-faq-q i { transform: rotate(180deg); }
+.contact-support-page .cs-faq-a { margin: 0 0 12px; font-size: 12.5px; line-height: 1.55; color: var(--text); opacity: 0.8; }
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .contact-support-page .cs-tiles,
+  .contact-support-page .cs-grid { grid-template-columns: 1fr; }
+}
+.cs-faq-a p { margin: 0 0 8px; }
+.cs-ticket-link { border: 0; background: transparent; padding: 0; color: #a1122f; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.cs-ticket-link:hover { text-decoration: underline; }
+.cs-faq-cta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding: 12px; border-radius: 12px; background: #fff1f2; border: 1px solid #fecdd3; font-size: 13px; }
+.cs-btn-sm { height: 34px; padding: 0 14px; font-size: 12.5px; }

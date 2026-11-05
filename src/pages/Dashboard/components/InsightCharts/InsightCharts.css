@@ -1,0 +1,105 @@
+/* Insight charts (Dashboard). Cards use the global .grid + .dash-anim animations from DashboardPage.css */
+.insight-grid-a { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+.insight-grid-b { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.dash-anim .insight-grid-a > :nth-child(1) { animation-delay: .70s; }
+.dash-anim .insight-grid-a > :nth-child(2) { animation-delay: .77s; }
+.dash-anim .insight-grid-b > :nth-child(1) { animation-delay: .85s; }
+.dash-anim .insight-grid-b > :nth-child(2) { animation-delay: .92s; }
+.dash-anim .insight-grid-b > :nth-child(3) { animation-delay: .99s; }
+
+.ic-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+}
+.ic-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ic-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.ic-head p { margin: 2px 0 0; font-size: 12px; opacity: .65; }
+.ic-good { color: #1f9d63; opacity: 1; }
+.ic-legend { display: flex; gap: 12px; font-size: 12px; }
+.ic-legend span, .ic-tip span { display: inline-flex; align-items: center; gap: 6px; }
+.ic-legend i, .ic-tip i, .ic-donut-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.ic-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.ic-axis { font-size: 10px; fill: var(--text); opacity: .55; }
+.ic-grid { stroke: var(--border); stroke-dasharray: 3 4; }
+
+/* ---- line chart ---- */
+.ic-chart-wrap { position: relative; }
+.ic-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; animation: icDraw 1.5s ease-out .6s backwards; }
+.ic-line-rev { stroke: var(--maroon); }
+.ic-line-exp { stroke: var(--navy); animation-delay: .8s; }
+.ic-area { animation: icFade 1s ease-out 1.5s backwards; }
+.ic-cursor { stroke: var(--text); opacity: .25; stroke-dasharray: 4 4; }
+.ic-dot { stroke: var(--card); stroke-width: 2; }
+.ic-dot-rev { fill: var(--maroon); }
+.ic-dot-exp { fill: var(--navy); }
+.ic-tip {
+  position: absolute; top: 6px; transform: translateX(-50%); pointer-events: none;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .16); display: grid; gap: 4px; font-size: 12px; white-space: nowrap;
+  animation: icFade .15s ease-out;
+}
+
+/* ---- donut ---- */
+.ic-donut-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.ic-donut { width: 160px; height: 160px; flex: none; }
+.ic-donut-track { fill: none; stroke: var(--border); stroke-width: 14; opacity: .5; }
+.ic-seg { fill: none; stroke-width: 14; cursor: pointer; animation: icDonut .9s cubic-bezier(.2,.7,.2,1) backwards; transition: stroke-width .2s, opacity .2s; }
+.ic-donut:hover .ic-seg:not(:hover) { opacity: .45; }
+.ic-seg.on { stroke-width: 18; }
+.ic-donut-big { font-size: 15px; font-weight: 700; fill: var(--text); }
+.ic-donut-sub { font-size: 8px; fill: var(--text); opacity: .6; }
+.ic-donut-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; flex: 1; min-width: 120px; }
+.ic-donut-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; cursor: default; transition: background .15s; }
+.ic-donut-legend li.on, .ic-donut-legend li:hover { background: var(--bg); }
+.ic-donut-legend span { flex: 1; }
+
+/* ---- bars ---- */
+.ic-bar { fill: var(--navy); opacity: .85; transform-box: fill-box; transform-origin: bottom;
+  animation: icGrow .8s cubic-bezier(.2,.7,.2,1) backwards; animation-delay: calc(var(--i) * .07s + .55s); transition: opacity .2s, filter .2s; }
+.ic-bar.best { fill: var(--maroon); opacity: 1; }
+.ic-bar:hover { opacity: 1; filter: brightness(1.15); }
+.ic-bar-val { font-size: 9.5px; font-weight: 600; fill: var(--text); animation: icFade .4s ease-out backwards; }
+
+/* ---- gauge ---- */
+.ic-gauge-wrap { display: grid; gap: 8px; }
+.ic-gauge { width: 100%; max-width: 280px; margin: 0 auto; display: block; }
+.ic-gauge-track, .ic-gauge-val { fill: none; stroke-width: 16; stroke-linecap: round; }
+.ic-gauge-track { stroke: var(--border); opacity: .6; }
+.ic-gauge-val { stroke: url(#icGauge); stroke-dasharray: 100; animation: icGauge 1.6s cubic-bezier(.2,.7,.2,1) .6s backwards; }
+.ic-gauge-big { font-size: 30px; font-weight: 800; fill: var(--text); }
+.ic-gauge-foot { display: flex; justify-content: space-between; font-size: 12px; opacity: .85; }
+.ic-gauge-foot b { margin-left: 4px; }
+
+/* ---- horizontal bars ---- */
+.ic-hbars { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ic-hbar-top { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; }
+.ic-hbar-track { height: 9px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+.ic-hbar-fill { height: 100%; border-radius: 99px; animation: icWidth 1s cubic-bezier(.2,.7,.2,1) backwards; }
+
+/* ---- keyframes ---- */
+@keyframes icDraw { from { stroke-dashoffset: 1; } }
+@keyframes icFade { from { opacity: 0; } }
+@keyframes icGrow { from { transform: scaleY(0); } }
+@keyframes icWidth { from { width: 0; } }
+@keyframes icGauge { from { stroke-dashoffset: 100; } }
+@keyframes icDonut { from { stroke-dasharray: 0 var(--c); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-line, .ic-area, .ic-seg, .ic-bar, .ic-bar-val, .ic-gauge-val, .ic-hbar-fill { animation: none; }
+}
+
+/* ---- responsive ---- */
+@media (max-width: 1280px) {
+  .insight-grid-b { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .insight-grid-b > :nth-child(3) { grid-column: span 2; }
+}
+@media (max-width: 1100px) {
+  .insight-grid-a { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .insight-grid-b { grid-template-columns: minmax(0, 1fr); }
+  .insight-grid-b > :nth-child(3) { grid-column: auto; }
+  .ic-legend { display: none; }
+}

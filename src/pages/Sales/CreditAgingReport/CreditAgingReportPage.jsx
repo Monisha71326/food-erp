@@ -1,0 +1,496 @@
+import "./CreditAgingReportPage.css";
+import { getErpRecords } from "@/data/erpApi.js";
+import { hubRequest } from "@/data/localDb.js";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+
+/* ==================================================================
+   Credit Aging Report  (Sales & Invoice -> Credit Aging Report)
+   - Client name, total and 0-29 / 30-59 / 60-89 / 90-119 / 120+ day
+     amounts are CALCULATED from your real invoices (nothing hard-coded).
+   - Click a client row to see the invoices behind the numbers.
+   ================================================================== */
+
+const CURRENCY = "£";      // change to "" for no symbol, or "₹" etc.
+const LOCALE = "en-GB";    // "en-IN" gives 1,91,43,375.00 style grouping
+/* Report uses the SAME invoices as Sales & Invoice > Invoices (ERP invoices).
+   Set to true to also add the Order Hub invoices (orders delivered through the hub). */
+const INCLUDE_ORDER_HUB = false;
+const AGE_FROM = "invoiceDate"; // "invoiceDate" | "dueDate"
+
+const BUCKETS = [
+  { key: "d0_30", label: "0 - 29 Days", min: 0, max: 29, rgb: "34,170,110" },
+  { key: "d31_60", label: "30 - 59 Days", min: 30, max: 59, rgb: "190,170,20" },
+  { key: "d61_90", label: "60 - 89 Days", min: 60, max: 89, rgb: "235,150,20" },
+  { key: "d91_120", label: "90 - 119 Days", min: 90, max: 119, rgb: "225,95,40" },
+  { key: "d120p", label: "120 Days & Above (Bad Credit)", min: 120, max: Infinity, rgb: "200,35,60" },
+];
+
+/* ==================================================================
+   DATA SOURCES (real data, nothing hard-coded)
+   1) Order Hub invoices  -> hubRequest("GET", "/state")   (src/data/localDb.js)
+        client names come from state.clients, balance = amount - paid
+   2) ERP invoices        -> getErpRecords("invoices")     (src/data/erpApi.js)
+        the records saved by Sales > Invoices (customer, date, due, balance)
+   ================================================================== */
+async function loadHubInvoices() {
+  const state = await hubRequest("GET", "/state");
+  const names = {};
+  (state?.clients || []).forEach((c) => (names[c.id] = c.name));
+  return (state?.invoices || []).map((i) => ({
+    _src: "hub",
+    invoiceNo: i.id,
+    customerName: names[i.clientId] || i.clientId,
+    invoiceDate: i.date,
+    status: i.status,
+    balance: i.status === "Outstanding" ? Math.max(0, Number(i.amount || 0) - Number(i.paid || 0)) : 0,
+  }));
+}
+
+async function loadErpInvoices() {
+  const rows = await getErpRecords("invoices");
+  return rows.map((r) => ({ ...r, _src: "erp" }));
+}
+
+/* ---------- helpers: accept different field names ---------- */
+const num = (v) => {
+  const n = Number(String(v ?? 0).replace(/[^0-9.\-]/g, ""));
+  return isNaN(n) ? 0 : n;
+};
+
+const pick = (obj, keys) => {
+  for (const k of keys) {
+    const v = k.split(".").reduce((o, p) => (o == null ? o : o[p]), obj);
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+};
+
+const clientOf = (inv) => {
+  const v = pick(inv, [
+    "customerName", "clientName", "customer_name", "client_name", "accountName",
+    "customer.name", "client.name", "customer.companyName", "client.companyName",
+    "billTo.name", "billTo", "companyName", "company", "customer", "client",
+  ]);
+  return v && typeof v === "object" ? v.name || "Unknown" : String(v || "Unknown");
+};
+
+const invoiceNoOf = (inv) =>
+  String(pick(inv, ["invoiceNo", "invoiceNumber", "number", "ref", "reference", "id"]) ?? "-");
+
+const invoiceDateOf = (inv) =>
+  pick(inv, ["invoiceDate", "invoice_date", "date", "issueDate", "issuedAt", "createdAt", "created_at"]);
+
+const dueDateOf = (inv) => pick(inv, ["dueDate", "due_date", "paymentDue"]) || invoiceDateOf(inv);
+
+const balanceOf = (inv) => {
+  const direct = pick(inv, ["balance", "balanceDue", "balance_due", "outstanding", "amountDue", "amount_due"]);
+  if (direct !== undefined) return num(direct);
+  const total = num(pick(inv, ["total", "grandTotal", "grand_total", "totalAmount", "amount", "gross"]));
+  let paid = num(pick(inv, ["paid", "amountPaid", "amount_paid", "paidAmount"]));
+  if (Array.isArray(inv.payments)) {
+    paid = Math.max(paid, inv.payments.reduce((s, p) => s + num(p?.amount ?? p), 0));
+  }
+  return total - paid;
+};
+
+const isCounted = (inv) => {
+  const s = String(inv.status ?? inv.paymentStatus ?? "").toLowerCase();
+  return !["paid", "cancelled", "canceled", "void", "draft", "rejected"].includes(s);
+};
+
+const daysOld = (date) => {
+  const d = new Date(date);
+  if (isNaN(d)) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+};
+
+const money = (n) =>
+  CURRENCY +
+  Number(n || 0).toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const initials = (name) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
+
+const riskOf = (r) => {
+  if (r.d120p > 0) return { id: "critical", label: "Bad Credit" };
+  if (r.d91_120 > 0) return { id: "high", label: "High risk" };
+  if (r.d61_90 > 0 || r.d31_60 > 0) return { id: "watch", label: "Watch" };
+  return { id: "good", label: "Good" };
+};
+
+const FILTERS = [
+  { id: "all", label: "All clients" },
+  { id: "critical", label: "Bad Credit (120+)" },
+  { id: "high", label: "High risk" },
+  { id: "watch", label: "Watch" },
+  { id: "good", label: "Good" },
+];
+
+/* ==================================================================
+   PAGE
+   ================================================================== */
+export default function CreditAgingReportPage() {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState({ key: "total", dir: "desc" });
+  const [open, setOpen] = useState(() => new Set());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [hub, erp] = await Promise.all([INCLUDE_ORDER_HUB ? loadHubInvoices() : [], loadErpInvoices()]);
+      setInvoices([...hub, ...erp]);
+    } catch (e) {
+      setError(e?.message || "Could not load invoices");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const visible = invoices;
+
+  /* ---- calculation: group unpaid invoices by client, drop balance into its day bucket ---- */
+  const allRows = useMemo(() => {
+    const map = {};
+    visible.forEach((inv) => {
+      if (!isCounted(inv)) return;
+      const bal = balanceOf(inv);
+      if (bal <= 0) return;
+
+      const age = daysOld(AGE_FROM === "dueDate" ? dueDateOf(inv) : invoiceDateOf(inv));
+      const bucket = BUCKETS.find((b) => age >= b.min && age <= b.max);
+      const name = clientOf(inv);
+
+      if (!map[name]) {
+        map[name] = { name, total: 0, d0_30: 0, d31_60: 0, d61_90: 0, d91_120: 0, d120p: 0, list: [] };
+      }
+      map[name][bucket.key] += bal;
+      map[name].total += bal;
+      map[name].list.push({ no: invoiceNoOf(inv), date: invoiceDateOf(inv), age, bal, bucket: bucket.key });
+    });
+    return Object.values(map).map((r) => ({
+      ...r,
+      risk: riskOf(r),
+      list: r.list.sort((a, b) => b.age - a.age),
+    }));
+  }, [visible]);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = allRows.filter(
+      (r) => r.name.toLowerCase().includes(q) && (filter === "all" || r.risk.id === filter)
+    );
+    list.sort((a, b) => {
+      const av = a[sort.key];
+      const bv = b[sort.key];
+      const res = typeof av === "string" ? av.localeCompare(bv) : av - bv;
+      return sort.dir === "asc" ? res : -res;
+    });
+    return list;
+  }, [allRows, search, filter, sort]);
+
+  const totals = useMemo(() => {
+    const t = { total: 0, d0_30: 0, d31_60: 0, d61_90: 0, d91_120: 0, d120p: 0 };
+    rows.forEach((r) => Object.keys(t).forEach((k) => (t[k] += r[k])));
+    return t;
+  }, [rows]);
+
+  const colMax = useMemo(() => {
+    const m = {};
+    BUCKETS.forEach((b) => (m[b.key] = Math.max(0, ...rows.map((r) => r[b.key]))));
+    return m;
+  }, [rows]);
+
+  const overdue90 = totals.d91_120 + totals.d120p; // 90 days & above
+  const pct = (v) => (totals.total ? (v / totals.total) * 100 : 0);
+
+  const toggleSort = (key) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+  const arrow = (key) => (sort.key === key ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
+
+  const toggleOpen = (name) =>
+    setOpen((s) => {
+      const n = new Set(s);
+      n.has(name) ? n.delete(name) : n.add(name);
+      return n;
+    });
+
+  const exportCsv = () => {
+    const head = ["S.NO", "NAME", "TOTAL", ...BUCKETS.map((b) => b.label), "RISK"];
+    const lines = rows.map((r, i) => [
+      i + 1,
+      `"${r.name.replace(/"/g, '""')}"`,
+      r.total.toFixed(2),
+      ...BUCKETS.map((b) => r[b.key].toFixed(2)),
+      r.risk.label,
+    ]);
+    const csv = [head, ...lines].map((l) => l.join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "credit-aging-report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="credit-aging-page car">
+      {/* ---------- header banner (same look as Sales > Invoices) ---------- */}
+      <div className="car-banner">
+        <div className="car-banner-icon">
+          <i className="fa-solid fa-hourglass-half" />
+        </div>
+        <div className="car-banner-text">
+          <span className="car-eyebrow">
+            <b /> SALES
+          </span>
+          <h2>Credit Aging Report</h2>
+          <p>Unpaid invoices grouped by client and by how many days they have been outstanding.</p>
+        </div>
+        <div className="car-actions">
+          <button className="car-btn-primary" onClick={exportCsv} disabled={!rows.length}>
+            <i className="fa-solid fa-download" /> Export CSV
+          </button>
+          <button className="car-btn-icon" onClick={load} title="Refresh">
+            <i className="fa-solid fa-rotate" />
+          </button>
+          <button className="car-btn-white" onClick={() => window.print()}>
+            <i className="fa-solid fa-print" /> Print
+          </button>
+        </div>
+      </div>
+
+      {/* ---------- summary strip ---------- */}
+      <div className="car-strip">
+        <div className="car-stat">
+          <span className="car-stat-ico t-orange"><i className="fa-solid fa-sterling-sign" /></span>
+          <div>
+            <small>Total Outstanding</small>
+            <strong>{money(totals.total)}</strong>
+            <em>{rows.length} client{rows.length === 1 ? "" : "s"} with dues</em>
+          </div>
+        </div>
+        <div className="car-stat">
+          <span className="car-stat-ico t-green"><i className="fa-solid fa-circle-check" /></span>
+          <div>
+            <small>Current (0 - 29 days)</small>
+            <strong>{money(totals.d0_30)}</strong>
+            <em>{pct(totals.d0_30).toFixed(1)}% of outstanding</em>
+          </div>
+        </div>
+        <div className="car-stat">
+          <span className="car-stat-ico t-amber"><i className="fa-solid fa-clock" /></span>
+          <div>
+            <small>90 Days &amp; Above</small>
+            <strong>{money(overdue90)}</strong>
+            <em>{pct(overdue90).toFixed(1)}% of outstanding</em>
+          </div>
+        </div>
+        <div className="car-stat">
+          <span className="car-stat-ico t-red"><i className="fa-solid fa-triangle-exclamation" /></span>
+          <div>
+            <small>Bad Credit (120 days &amp; above)</small>
+            <strong>{money(totals.d120p)}</strong>
+            <em>{allRows.filter((r) => r.d120p > 0).length} client(s) affected</em>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- overall aging bar ---------- */}
+      {totals.total > 0 && (
+        <div className="car-card">
+          <div className="car-bar car-bar-big">
+            {BUCKETS.map((b) =>
+              totals[b.key] > 0 ? (
+                <div
+                  key={b.key}
+                  title={`${b.label}: ${money(totals[b.key])}`}
+                  style={{ width: pct(totals[b.key]) + "%", background: `rgb(${b.rgb})` }}
+                />
+              ) : null
+            )}
+          </div>
+          <div className="car-legend">
+            {BUCKETS.map((b) => (
+              <span key={b.key}>
+                <i style={{ background: `rgb(${b.rgb})` }} />
+                {b.label} <b>{pct(totals[b.key]).toFixed(1)}%</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- toolbar ---------- */}
+      <div className="car-toolbar">
+        <input
+          className="car-search"
+          placeholder="Search client..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="car-chips">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              className={filter === f.id ? "on" : ""}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+              <em>{f.id === "all" ? allRows.length : allRows.filter((r) => r.risk.id === f.id).length}</em>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ---------- table ---------- */}
+      <div className="car-card car-table-wrap">
+        <table className="car-table">
+          <thead>
+            <tr>
+              <th style={{ width: 60 }}>S.NO</th>
+              <th onClick={() => toggleSort("name")}>NAME{arrow("name")}</th>
+              <th className="num" onClick={() => toggleSort("total")}>TOTAL{arrow("total")}</th>
+              {BUCKETS.map((b) => (
+                <th key={b.key} className="num" onClick={() => toggleSort(b.key)}>
+                  <i className="car-dot" style={{ background: `rgb(${b.rgb})` }} />
+                  {b.label.toUpperCase()}
+                  {arrow(b.key)}
+                </th>
+              ))}
+              <th>RISK</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const isOpen = open.has(r.name);
+              return (
+                <Fragment key={r.name}>
+                  <tr className={"car-row" + (isOpen ? " open" : "")} onClick={() => toggleOpen(r.name)}>
+                    <td>{i + 1}</td>
+                    <td>
+                      <div className="car-client">
+                        <span className="car-avatar">{initials(r.name)}</span>
+                        <div>
+                          <div className="car-name">{r.name}</div>
+                          <div className="car-sub">{r.list.length} unpaid invoice{r.list.length === 1 ? "" : "s"}</div>
+                          <div className="car-bar car-bar-small">
+                            {BUCKETS.map((b) =>
+                              r[b.key] > 0 ? (
+                                <div key={b.key} style={{ width: (r[b.key] / r.total) * 100 + "%", background: `rgb(${b.rgb})` }} />
+                              ) : null
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="num strong">{money(r.total)}</td>
+                    {BUCKETS.map((b) => {
+                      const v = r[b.key];
+                      const a = colMax[b.key] ? 0.1 + 0.28 * (v / colMax[b.key]) : 0;
+                      return (
+                        <td
+                          key={b.key}
+                          className={"num" + (v ? "" : " zero")}
+                          style={v ? { background: `rgba(${b.rgb},${a.toFixed(2)})` } : undefined}
+                        >
+                          {money(v)}
+                        </td>
+                      );
+                    })}
+                    <td>
+                      <span className={"car-badge " + r.risk.id}>{r.risk.label}</span>
+                    </td>
+                  </tr>
+
+                  {isOpen && (
+                    <tr className="car-detail">
+                      <td />
+                      <td colSpan={BUCKETS.length + 3}>
+                        <table className="car-inner">
+                          <thead>
+                            <tr>
+                              <th>Invoice</th>
+                              <th>Date</th>
+                              <th className="num">Days old</th>
+                              <th className="num">Balance</th>
+                              <th>Bucket</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {r.list.map((x, k) => {
+                              const b = BUCKETS.find((bb) => bb.key === x.bucket);
+                              return (
+                                <tr key={k}>
+                                  <td>{x.no}</td>
+                                  <td>{x.date ? new Date(x.date).toLocaleDateString(LOCALE) : "-"}</td>
+                                  <td className="num">{x.age}</td>
+                                  <td className="num">{money(x.bal)}</td>
+                                  <td>
+                                    <span className="car-pill" style={{ background: `rgba(${b.rgb},.18)`, color: `rgb(${b.rgb})` }}>
+                                      {b.label}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+
+            {(loading || error || rows.length === 0) && (
+              <tr>
+                <td colSpan={BUCKETS.length + 4} className="car-empty">
+                  {loading ? (
+                    "Loading invoices..."
+                  ) : error ? (
+                    error
+                  ) : invoices.length === 0 ? (
+                    <>
+                      <b>No invoices found.</b>
+                      <br />
+                      Raise an invoice in <i>Sales &amp; Invoice → Invoices</i>, then press Refresh.
+                    </>
+                  ) : (
+                    "No clients match this filter."
+                  )}
+                </td>
+              </tr>
+            )}
+          </tbody>
+
+          {rows.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={2}>GRAND TOTAL</td>
+                <td className="num">{money(totals.total)}</td>
+                {BUCKETS.map((b) => (
+                  <td key={b.key} className="num">{money(totals[b.key])}</td>
+                ))}
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      <p className="car-foot">
+        {visible.length} invoice{visible.length === 1 ? "" : "s"} read · ageing counted from{" "}
+        {AGE_FROM === "dueDate" ? "due date" : "invoice date"} · only unpaid balances are counted (paid, cancelled, draft and void are skipped).
+      </p>
+    </div>
+  );
+}

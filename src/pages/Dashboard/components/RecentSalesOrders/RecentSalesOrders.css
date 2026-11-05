@@ -1,0 +1,8 @@
+/* RecentSalesOrders card */
+
+.recent-orders-card { padding: 16px 16px 12px; }
+
+/* ---- Phone (<= 640px) ---- */
+@media (max-width: 640px) {
+  .recent-orders-card { overflow-x: auto; }
+}

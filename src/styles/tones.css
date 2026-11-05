@@ -1,0 +1,7 @@
+/* Tone colors (icon badges) shared by StatCard and SummaryStrip */
+
+.tone-red { background: #fbe7ea; color: #b31232; }
+.tone-blue { background: #e4edfd; color: #3b6fe0; }
+.tone-orange { background: #fdf0e0; color: #f08a1c; }
+.tone-purple { background: #f0e8fd; color: #7c3aed; }
+.tone-green { background: #dcf5e6; color: #0f8f45; }

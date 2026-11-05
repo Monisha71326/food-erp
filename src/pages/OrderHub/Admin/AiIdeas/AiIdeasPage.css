@@ -1,0 +1,6 @@
+.ai-ideas-page .ai-list { display: flex; flex-direction: column; }
+.ai-ideas-page .ai-list .hub-card { margin-bottom: 10px; padding: 14px 18px; }
+.ai-ideas-page .ai-item { display: flex; gap: 14px; align-items: flex-start; }
+.ai-ideas-page .ai-badge { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: #fbe7ea; color: #b31232; }
+.app.dark .ai-ideas-page .ai-badge { background: rgba(179, 18, 50, 0.22); color: #ff7d93; }
+.ai-ideas-page .ai-text { font-size: 13px; margin-top: 3px; }

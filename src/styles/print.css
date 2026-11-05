@@ -1,0 +1,101 @@
+/* Global print rules. Works together with src/utils/print.js (classes: print-hide, print-flow, print-area). */
+
+/* the little "Printed on ..." line is hidden on screen */
+.ph-print-date { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* everything outside the page content */
+  .print-hide { display: none !important; }
+
+  /* ancestors of the page content: let it flow normally across pages */
+  .print-flow {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+    background: #fff !important;
+  }
+
+  /* the page content itself */
+  .print-area {
+    /* force light tokens so dark mode also prints on white paper */
+    --bg: #fff; --card: #fff; --text: #111; --muted: #555; --border: #cfd4dc;
+    color: #111 !important;
+    background: #fff !important;
+    animation: none !important;
+    transform: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* things that make no sense on paper */
+  .print-area .ph-actions,
+  .print-area .ph-glow,
+  .print-area .ph-icon,
+  .print-area .dt-toolbar,
+  .print-area .dt-pager,
+  .print-area .dt-check,
+  .print-area [data-col="__actions"],
+  .print-area .erp-modal-backdrop,
+  .print-area .erp-notice,
+  .print-area .erp-error,
+  .print-area .no-print { display: none !important; }
+
+  /* banner -> plain heading */
+  .print-area .ph {
+    background: none !important;
+    color: #111 !important;
+    border: 0 !important;
+    border-bottom: 2px solid #9a0f2e !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 0 8px !important;
+    margin: 0 0 12px !important;
+    overflow: visible !important;
+  }
+  .print-area .ph::after { display: none !important; }
+  .print-area .ph-eyebrow { background: none !important; border: 0 !important; padding: 0 !important; color: #9a0f2e !important; }
+  .print-area .ph-dot { display: none !important; }
+  .print-area .ph-title { color: #111 !important; font-size: 22px !important; margin-top: 4px !important; }
+  .print-area .ph-title span { background: none !important; color: #111 !important; -webkit-text-fill-color: #111; }
+  .print-area .ph-sub { color: #444 !important; }
+  .print-area .ph-print-date { display: block; margin-top: 4px; font-size: 11px; color: #555; }
+
+  /* cards + tables */
+  .print-area .card,
+  .print-area .dt-card { box-shadow: none !important; border: 0 !important; border-radius: 0 !important; }
+  .print-area .dt-scroll { overflow: visible !important; }
+  .print-area .dt { font-size: 10px !important; }
+  .print-area .dt thead { display: table-header-group; }
+  .print-area .dt thead th {
+    position: static !important;
+    background: #eceff5 !important;
+    color: #111 !important;
+    border-bottom: 1px solid #999;
+  }
+  .print-area .dt th,
+  .print-area .dt td { white-space: normal !important; padding: 6px 8px !important; }
+  .print-area .dt-row {
+    animation: none !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .print-area .dt-foot { padding: 8px 0 0 !important; }
+}

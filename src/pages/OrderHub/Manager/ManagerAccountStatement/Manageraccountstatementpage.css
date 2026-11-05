@@ -1,0 +1,120 @@
+/* Manager "Client Account Statement" page */
+.manager-statement-page .mas-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; }
+
+/* ---------- overview ---------- */
+.manager-statement-page .mas-overview {
+  display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.3fr); gap: 20px 32px; margin-bottom: 18px; padding: 22px 24px;
+  border: 1px solid var(--border); border-radius: 18px; background: var(--card, #fff);
+}
+.manager-statement-page .mas-over-label { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.manager-statement-page .mas-over-value { margin: 0; font-size: 40px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.manager-statement-page .mas-over-sub { margin: 6px 0 16px; font-size: 13px; color: var(--muted); }
+
+.manager-statement-page .mas-collect-top { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12.5px; color: var(--muted); }
+.manager-statement-page .mas-collect-top b { color: inherit; }
+.manager-statement-page .mas-collect-bar { height: 8px; border-radius: 999px; background: rgba(100, 116, 139, 0.18); overflow: hidden; }
+.manager-statement-page .mas-collect-bar i { display: block; height: 100%; border-radius: 999px; background: #16a34a; transition: width 0.5s ease; }
+
+.manager-statement-page .mas-agebar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: rgba(100, 116, 139, 0.18); }
+.manager-statement-page .mas-agebar.big { height: 18px; margin: 4px 0 14px; }
+.manager-statement-page .mas-agebar i { display: block; height: 100%; transition: width 0.5s ease; }
+.manager-statement-page .mas-agebar i + i { box-shadow: -2px 0 0 var(--card, #fff); }
+
+.manager-statement-page .mas-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 20px; margin: 0; padding: 0; list-style: none; }
+.manager-statement-page .mas-legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.manager-statement-page .mas-legend-name { margin-right: auto; color: var(--muted); }
+.manager-statement-page .mas-legend b { font-variant-numeric: tabular-nums; }
+
+.manager-statement-page .mas-over-stats {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 18px; border-top: 1px solid var(--border);
+}
+.manager-statement-page .mas-over-stats div { display: flex; flex-direction: column; gap: 3px; }
+.manager-statement-page .mas-over-stats span { font-size: 12.5px; color: var(--muted); }
+.manager-statement-page .mas-over-stats b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.manager-statement-page .mas-over-stats .bad b { color: #7f1d1d; }
+
+/* ---------- toolbar ---------- */
+.manager-statement-page .mas-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 16px; }
+.manager-statement-page .mas-search {
+  display: flex; align-items: center; gap: 8px; min-width: 240px; height: 38px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card, #fff);
+}
+.manager-statement-page .mas-search i { color: var(--muted); font-size: 13px; }
+.manager-statement-page .mas-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; font-size: 13.5px; }
+.manager-statement-page .mas-search:focus-within { border-color: var(--maroon, #a1122f); }
+
+.manager-statement-page .mas-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-right: auto; }
+.manager-statement-page .mas-chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.manager-statement-page .mas-chip:hover { border-color: var(--maroon, #a1122f); color: inherit; }
+.manager-statement-page .mas-chip.on { background: var(--maroon, #a1122f); border-color: transparent; color: #fff; }
+.manager-statement-page .mas-chip b { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(100, 116, 139, 0.2); font-size: 11px; font-weight: 800; text-align: center; }
+.manager-statement-page .mas-chip.on b { background: rgba(255, 255, 255, 0.28); }
+
+.manager-statement-page .mas-sort { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.manager-statement-page .mas-sort select {
+  height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card, #fff); color: inherit; font: inherit; font-size: 13px;
+}
+
+/* ---------- client cards ---------- */
+.manager-statement-page .mas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+.manager-statement-page .mas-card {
+  --tone: #16a34a; display: flex; flex-direction: column; gap: 14px; padding: 18px 18px 16px; border: 1px solid var(--border); border-top: 4px solid var(--tone);
+  border-radius: 16px; background: var(--card, #fff);
+  animation: mas-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes mas-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.manager-statement-page .mas-card-head { display: flex; align-items: center; gap: 12px; }
+.manager-statement-page .mas-avatar {
+  display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--tone); color: #fff; font-size: 14px; font-weight: 800;
+}
+.manager-statement-page .mas-card-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin-right: auto; }
+.manager-statement-page .mas-card-name b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manager-statement-page .mas-card-name small { font-size: 12px; color: var(--muted); }
+
+.manager-statement-page .mas-badtag, .manager-statement-page .mas-oktag {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+}
+.manager-statement-page .mas-badtag { background: rgba(127, 29, 29, 0.12); color: #7f1d1d; }
+.manager-statement-page .mas-oktag { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+
+.manager-statement-page .mas-card-bal { display: flex; flex-direction: column; gap: 2px; }
+.manager-statement-page .mas-card-bal span { font-size: 12.5px; color: var(--muted); }
+.manager-statement-page .mas-card-bal b { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+.manager-statement-page .mas-ages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.manager-statement-page .mas-ages div { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 11.5px; color: var(--muted); }
+.manager-statement-page .mas-ages span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.manager-statement-page .mas-ages b { font-size: 12px; font-weight: 600; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.manager-statement-page .mas-ages .has b { color: inherit; font-weight: 800; }
+
+.manager-statement-page .mas-card-foot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.manager-statement-page .mas-card-foot div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.manager-statement-page .mas-card-foot span { font-size: 11.5px; color: var(--muted); }
+.manager-statement-page .mas-card-foot b { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.manager-statement-page .mas-paid { height: 4px; margin-top: -4px; border-radius: 999px; background: rgba(100, 116, 139, 0.18); overflow: hidden; }
+.manager-statement-page .mas-paid i { display: block; height: 100%; background: #16a34a; transition: width 0.5s ease; }
+
+/* ---------- empty ---------- */
+.manager-statement-page .mas-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 16px; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); text-align: center;
+}
+.manager-statement-page .mas-empty i { font-size: 26px; opacity: 0.7; }
+.manager-statement-page .mas-empty p { margin: 0; font-size: 13.5px; }
+
+@media (max-width: 900px) {
+  .manager-statement-page .mas-overview { grid-template-columns: 1fr; }
+  .manager-statement-page .mas-over-value { font-size: 32px; }
+}
+@media (max-width: 560px) {
+  .manager-statement-page .mas-grid { grid-template-columns: 1fr; }
+  .manager-statement-page .mas-over-stats { grid-template-columns: 1fr; }
+  .manager-statement-page .mas-ages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-statement-page .mas-card { animation: none; }
+  .manager-statement-page .mas-agebar i, .manager-statement-page .mas-collect-bar i, .manager-statement-page .mas-paid i { transition: none; }
+}

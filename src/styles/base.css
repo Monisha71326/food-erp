@@ -1,0 +1,23 @@
+/* Reset, global element defaults and the shared .card surface */
+
+/* ---- Reset + element defaults ---- */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; color: inherit; }
+a { color: inherit; text-decoration: none; }
+ul { list-style: none; margin: 0; padding: 0; }
+h1, h2, h3, p { margin: 0; }
+
+/* ---- App wrapper + helpers ---- */
+.app { min-height: 100vh; background: var(--bg); color: var(--text); }
+.muted { color: var(--muted); }
+
+/* ---- Card surface used by every page ---- */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }

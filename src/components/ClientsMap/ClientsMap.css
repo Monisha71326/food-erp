@@ -1,0 +1,160 @@
+.clients-map { margin-bottom: 16px; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--card, #fff); }
+
+/* stage = left panel + map */
+.clients-map-stage { position: relative; isolation: isolate; display: grid; grid-template-columns: 300px 1fr; }
+.cm-mapwrap { position: relative; min-width: 0; }
+.clients-map-canvas { height: 540px; width: 100%; background: #e5e7eb; }
+
+/* ---------- left dark-blue panel ---------- */
+.cm-panel {
+  display: flex; flex-direction: column; align-items: center; padding: 22px 16px 16px; color: #fff; text-align: center;
+  background: linear-gradient(165deg, #1e3a8a 0%, #1e2a78 55%, #2e2a85 100%);
+  height: 540px; overflow: hidden;
+}
+.cm-panel-logo {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; margin-bottom: 10px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; font-size: 30px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.5);
+}
+.cm-panel h3 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.2px; }
+.cm-panel p { margin: 6px 0 16px; font-size: 13.5px; line-height: 1.35; color: #bfdbfe; max-width: 200px; }
+.cm-panel ul { width: 100%; margin: 0; padding: 0 2px 0 0; list-style: none; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.cm-panel ul::-webkit-scrollbar { width: 4px; }
+.cm-panel ul::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+.cm-panel li {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.15s, transform 0.15s, border-color 0.15s;
+}
+.cm-panel li:hover { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.45); transform: translateX(2px); }
+.cm-li-ico { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; font-size: 19px; }
+.cm-li-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin-right: auto; }
+.cm-li-txt b { font-size: 15.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-li-txt small { font-size: 14px; font-weight: 600; color: #e0e7ff; font-variant-numeric: tabular-nums; }
+.cm-li-txt small i { margin-right: 4px; font-size: 12px; color: #93c5fd; }
+.cm-li-arrow { flex: none; font-size: 14px; color: #c7d2fe; }
+.cm-panel li.cm-empty { justify-content: center; cursor: default; color: #c7d2fe; font-size: 13px; }
+
+/* ---------- bottom bar ---------- */
+.clients-map-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
+.clients-map-bar > span i { margin-right: 6px; opacity: 0.8; }
+.clients-map-bar .cm-spacer { margin-left: auto; }
+.clients-map-bar .cm-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: transparent; color: inherit; font: inherit; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.clients-map-bar .cm-btn:hover { border-color: #2563eb; color: #2563eb; }
+
+/* ---------- map controls ---------- */
+.clients-map .cm-compass {
+  position: absolute; top: 14px; right: 14px; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: 48px; height: 48px; border-radius: 50%; background: #fff; color: #0f172a; line-height: 1; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+.clients-map .cm-compass i { color: #dc2626; font-size: 15px; transform: rotate(-45deg); }
+.clients-map .cm-compass b { font-size: 11px; font-weight: 800; }
+
+.clients-map .cm-ctrl { position: absolute; right: 14px; bottom: 14px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.clients-map .cm-ctrl button {
+  display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 12px; background: #fff; color: #0f172a; font-size: 16px; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+.clients-map .cm-ctrl button:hover { background: #eff6ff; color: #2563eb; }
+
+/* ---------- pins ---------- */
+.clients-map .cm-store-pin, .clients-map .cm-me-pin { display: block; width: 100%; line-height: 1; text-align: center; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35)); }
+.clients-map .cm-store-pin { font-size: 32px; color: #dc2626; }
+.clients-map .cm-me-pin { position: relative; font-size: 48px; color: #2563eb; }
+
+/* pulsing rings under "me" pin tip */
+.clients-map .cm-pulse {
+  position: absolute; left: 50%; bottom: 0; width: 60px; height: 60px; margin: 0 0 -30px -30px; border-radius: 50%;
+  background: rgba(59, 130, 246, 0.35); animation: cm-pulse 2.4s ease-out infinite;
+}
+.clients-map .cm-pulse2 { animation-delay: 1.2s; }
+@keyframes cm-pulse {
+  0% { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+/* distance pill on the dotted route */
+.clients-map .cm-km {
+  position: absolute; transform: translate(-50%, -50%); padding: 3px 11px; border-radius: 999px; background: #1e3a8a; color: #fff;
+  font-size: 13px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- tooltips: store cards + "Your Location" tag ---------- */
+.leaflet-tooltip.cm-tip { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.leaflet-tooltip.cm-tip::before { display: none; }
+
+.cm-card {
+  display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 8px; border-radius: 999px; background: #fff; color: #0f172a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); white-space: nowrap; text-align: left;
+}
+.cm-card-ico { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; font-size: 17px; }
+.cm-card-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; line-height: 1.1; }
+.cm-card-txt b { font-size: 15px; font-weight: 800; }
+.cm-card-txt em {
+  font-style: normal; font-size: 12.5px; font-weight: 800; color: #fff; background: #dc2626; padding: 2px 12px; border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cm-me-tag {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px 7px 10px; border-radius: 999px; background: #1d4ed8; color: #fff;
+  box-shadow: 0 6px 18px rgba(29, 78, 216, 0.5); white-space: nowrap; line-height: 1.2; border: 2px solid rgba(255, 255, 255, 0.6);
+}
+.cm-me-tag > i { font-size: 14px; }
+.cm-me-tag b { font-size: 14px; font-weight: 800; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .clients-map-stage { grid-template-columns: 1fr; }
+  .cm-panel { height: auto; max-height: 340px; padding: 16px 14px 12px; }
+  .cm-panel-logo { width: 48px; height: 48px; font-size: 22px; }
+  .cm-panel h3 { font-size: 20px; }
+  .cm-panel p { margin-bottom: 10px; max-width: none; }
+  .cm-panel ul { max-height: 180px; }
+  .clients-map-canvas { height: 420px; }
+}
+/* ADD at the END of your existing ClientsMap.css (do not delete the old CSS) */
+
+/* ---------- store details inside the left panel ---------- */
+.cm-panel li:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.cm-detail {
+  width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; text-align: left; overflow: auto;
+  animation: cm-in 0.25s ease backwards;
+}
+@keyframes cm-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+
+.cm-back {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.08); color: #fff; font: inherit; font-size: 12.5px; font-weight: 700;
+}
+.cm-back:hover { background: rgba(255, 255, 255, 0.18); }
+
+.cm-d-head { display: flex; align-items: center; gap: 12px; }
+.cm-d-head .cm-li-ico { width: 48px; height: 48px; font-size: 21px; }
+.cm-d-head h4 { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.2; word-break: break-word; }
+
+.cm-d-dist { padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.22); }
+.cm-d-dist b { display: block; font-size: 26px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.cm-d-dist small { font-size: 13px; font-weight: 600; color: #bfdbfe; }
+.cm-d-dist small i { display: inline-block; margin-right: 6px; transition: transform 0.4s ease; }
+
+.cm-d-list { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.cm-d-list > div { display: flex; align-items: flex-start; gap: 10px; }
+.cm-d-list dt { flex: none; width: 22px; padding-top: 14px; text-align: center; color: #93c5fd; }
+.cm-d-list dd { margin: 0; font-size: 13.5px; line-height: 1.35; color: #e0e7ff; word-break: break-word; }
+.cm-d-list dd span { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #93c5fd; }
+
+.cm-d-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+.cm-d-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fff; font-size: 13px; font-weight: 700; text-decoration: none;
+}
+.cm-d-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.cm-d-btn.primary { background: #fff; color: #1e3a8a; border-color: #fff; }
+.cm-d-btn.primary:hover { background: #eff6ff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-detail { animation: none; }
+}

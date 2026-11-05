@@ -1,0 +1,73 @@
+/* Invoice "Upload Photo" tab (client + area manager). Uses theme tokens, so dark mode works. */
+.ivp { display: flex; flex-direction: column; gap: 18px; }
+.ivp .invd-card { display: flex; flex-direction: column; gap: 12px; }
+.ivp .invd-card-title .invd-badge { margin-left: 4px; }
+
+/* drop zone */
+.ivp-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 26px 18px; border: 2px dashed var(--line, #e2e8f0); border-radius: 16px; background: color-mix(in srgb, var(--bg, #f1f5f9) 55%, transparent); transition: border-color .15s, background .15s; }
+.ivp-drop.over { border-color: var(--brand, #a1122f); background: rgba(161, 18, 47, 0.07); }
+.ivp-drop.full { opacity: .65; }
+.ivp-drop-ic { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: #fff; background: linear-gradient(135deg, #a1122f, #85102a); box-shadow: 0 8px 18px rgba(161, 18, 47, .28); margin-bottom: 4px; }
+.ivp-drop b { font-size: 15px; }
+.ivp-drop small { font-size: 12.5px; color: var(--muted, #64748b); }
+.ivp-drop-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 12px; }
+
+.ivp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 10px; border: 1px solid transparent; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #a1122f, #85102a); cursor: pointer; text-decoration: none; transition: transform .15s, filter .15s; }
+.ivp-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.ivp-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ivp-btn.ghost { background: var(--paper, #fff); color: var(--ink, #0f172a); border-color: var(--line, #e2e8f0); }
+.ivp-btn.danger { background: #c8102e; }
+
+/* staged thumbnails */
+.ivp-staged { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.ivp-staged li { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid var(--line, #e2e8f0); }
+.ivp-staged img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ivp-staged button { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(15, 23, 42, .75); color: #fff; font-size: 11px; cursor: pointer; }
+.ivp-staged button:hover { background: #c8102e; }
+.ivp-size { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(15, 23, 42, .72); color: #fff; font-size: 10.5px; font-weight: 700; }
+.ivp-submit { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.ivp-msg { margin: 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ivp-msg.ok { color: #15803d; }
+.ivp-msg.bad { color: #b91c1c; }
+
+/* role badge */
+.ivp-role { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: .02em; }
+.ivp-role.client { background: #dfeafd; color: #1e40af; }
+.ivp-role.mgr { background: #fde4e7; color: #a1122f; }
+.app.dark .ivp-role.client { background: rgba(60, 110, 230, .25); color: #9db9ff; }
+.app.dark .ivp-role.mgr { background: rgba(244, 63, 94, .2); color: #fda4af; }
+
+/* gallery */
+.ivp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.ivp-item { position: relative; display: block; padding: 0; text-align: left; border-radius: 14px; overflow: hidden; border: 1px solid var(--line, #e2e8f0); background: var(--paper, #fff); cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.ivp-item:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(15, 23, 42, .16); }
+.ivp-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.ivp-item .ivp-role { position: absolute; top: 8px; left: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
+.ivp-cap { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; }
+.ivp-cap b { font-size: 13px; color: var(--ink, #0f172a); }
+.ivp-cap small { font-size: 11.5px; color: var(--muted, #64748b); }
+
+/* viewer */
+.ivp-lb { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 28, .86); animation: pageIn .2s ease both; }
+.ivp-lb-box { position: relative; width: min(960px, 100%); max-height: 94vh; display: flex; flex-direction: column; gap: 12px; color: #fff; }
+.ivp-lb-x { position: absolute; top: -6px; right: -6px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #fff; color: #0f172a; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+.ivp-lb-stage { display: flex; align-items: center; gap: 10px; min-height: 0; }
+.ivp-lb-stage img { flex: 1; min-width: 0; max-height: 68vh; object-fit: contain; border-radius: 12px; background: #000; }
+.ivp-lb-nav { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .16); color: #fff; cursor: pointer; }
+.ivp-lb-nav:hover:not(:disabled) { background: rgba(255, 255, 255, .3); }
+.ivp-lb-nav:disabled { opacity: .25; cursor: default; }
+.ivp-lb-info { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, .08); }
+.ivp-lb-info > div:first-child { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.ivp-lb-info b { font-size: 15px; }
+.ivp-lb-info small { opacity: .75; font-size: 12px; }
+.ivp-lb-info p { margin: 4px 0 0; font-size: 13px; opacity: .92; max-width: 520px; }
+.ivp-lb-actions { display: flex; gap: 8px; }
+.ivp-lb-count { margin: 0; text-align: center; font-size: 12px; opacity: .65; }
+
+@media (max-width: 640px) {
+  .ivp-drop { padding: 20px 12px; }
+  .ivp-drop-btns { width: 100%; flex-direction: column; }
+  .ivp-drop-btns .ivp-btn { width: 100%; }
+  .ivp-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .ivp-lb-nav { display: none; }
+}

@@ -1,0 +1,238 @@
+/* Invoice document (4 templates).
+   --acc    = solid colour (text, thin lines)       <- plain colour, or the gradient's FROM colour
+   --acc-bg = background image (solid or gradient)  <- set from Settings -> Invoice Templates */
+.ipr-doc, .ipr-doc * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ipr-doc {
+  --acc: #a1122f;
+  --acc-bg: linear-gradient(#a1122f, #a1122f);
+  position: relative; width: 100%; max-width: 180mm; margin: 0 auto; background: #fff; color: #0f172a;
+  font: 12px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.ipr-doc h1, .ipr-doc p, .ipr-doc dl, .ipr-doc dd, .ipr-doc dt { margin: 0; }
+.ipr-num { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+/* ----- shared parts ----- */
+.ipr-billto span { font-size: 11.5px; color: #475569; }
+.ipr-billto .ipr-am { margin-top: 4px; color: #0f172a; }
+.ipr-billto .ipr-am b { font-size: 11.5px; }
+.ipr-pay { margin-top: 16px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; break-inside: avoid; }
+.ipr-pay small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #64748b; }
+.ipr-pay dl { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+.ipr-pay dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.ipr-pay dt { color: #64748b; font-weight: 600; }
+.ipr-pay dd { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.ipr-pay p { color: #334155; }
+.ipr-parties { margin-top: 16px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; align-items: start; }
+.ipr-billto { display: flex; flex-direction: column; gap: 2px; }
+.ipr-billto small, .ipr-terms small { font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #64748b; }
+.ipr-billto b { font-size: 16px; }
+.ipr-meta { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.ipr-meta > div { display: flex; justify-content: space-between; gap: 12px; }
+.ipr-meta dt { color: #64748b; font-weight: 600; }
+.ipr-meta dd { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+.ipr-table { width: 100%; margin-top: 16px; border-collapse: collapse; }
+.ipr-table th { padding: 8px 10px; text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
+.ipr-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; }
+.ipr-table .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ipr-table tr { break-inside: avoid; }
+
+.ipr-totals { width: 72mm; margin: 14px 0 0 auto; display: flex; flex-direction: column; gap: 6px; break-inside: avoid; }
+.ipr-totals > div { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+.ipr-totals span { color: #475569; font-weight: 600; }
+.ipr-grand { margin-top: 4px; padding: 8px 10px; font-size: 14px; }
+.ipr-grand b { font-size: 16px; }
+
+.ipr-stamp {
+  width: fit-content; margin: 18px auto 0; padding: 4px 26px; border: 3px solid #16a34a; border-radius: 8px;
+  color: #16a34a; font-size: 24px; font-weight: 900; letter-spacing: 5px; transform: rotate(-6deg); break-inside: avoid;
+}
+.ipr-terms { margin-top: 18px; display: flex; flex-direction: column; gap: 4px; white-space: pre-line; color: #334155; break-inside: avoid; }
+.ipr-foot { margin-top: 22px; padding-top: 10px; border-top: 1px dashed #cbd5e1; text-align: center; font-size: 11px; color: #64748b; }
+
+/* ===== 1) CLASSIC: centered header, title pill ===== */
+.t-classic .ipr-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-bottom: 14px; border-bottom: 3px solid var(--acc); border-image: var(--acc-bg) 1; }
+.t-classic .ipr-brand h1 { font-size: 24px; font-weight: 800; letter-spacing: 0.3px; color: var(--acc); }
+.t-classic .ipr-brand p { font-size: 11px; color: #475569; }
+.t-classic .ipr-titlebox { margin-top: 8px; }
+.t-classic .ipr-title { display: inline-block; padding: 4px 22px; border-radius: 999px; background: var(--acc-bg); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; }
+.t-classic .ipr-num { display: none; }
+.t-classic .ipr-meta { padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+.t-classic .ipr-table th { background: #f1f5f9; color: #0f172a; border-bottom: 2px solid var(--acc); }
+.t-classic .ipr-grand { border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; }
+.t-classic .ipr-grand b { color: var(--acc); }
+
+/* ===== 2) MODERN: clean white layout, accent strip on top, big logo, card style ===== */
+.t-modern { padding-top: 8px; }
+.t-modern::before { content: ""; position: absolute; top: -8px; left: 0; right: 0; height: 6px; border-radius: 6px; background: var(--acc-bg); }
+.t-modern .ipr-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0 16px; border-bottom: 1px solid #e2e8f0; }
+.t-modern .ipr-brand { gap: 14px; }
+.t-modern .ipr-brand h1 { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: 0.2px; }
+.t-modern .ipr-brand p { font-size: 11px; color: #64748b; }
+.t-modern .ipr-titlebox { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.t-modern .ipr-title { font-size: 30px; line-height: 1; font-weight: 900; letter-spacing: 5px; text-transform: uppercase; color: var(--acc); }
+.t-modern .ipr-num { padding: 3px 12px; border-radius: 999px; background: #f1f5f9; border: 1px solid #e2e8f0; font-size: 11.5px; font-weight: 700; color: #334155; }
+.t-modern .ipr-parties { grid-template-columns: 1fr 1.5fr; gap: 14px; }
+.t-modern .ipr-billto { border-left: 0; border-top: 3px solid var(--acc); border-radius: 8px; background: #fff; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; }
+.t-modern .ipr-meta { grid-template-columns: 1fr 1fr; gap: 8px 24px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.t-modern .ipr-table { margin-top: 18px; }
+.t-modern .ipr-table thead tr { background: transparent; }
+.t-modern .ipr-table th { background: transparent; color: var(--acc); border-top: 1px solid #e2e8f0; border-bottom: 2px solid var(--acc); padding: 9px 10px; }
+.t-modern .ipr-table tbody tr:nth-child(even) td { background: transparent; }
+.t-modern .ipr-grand { border-radius: 10px; background: var(--acc-bg); }
+.t-modern .ipr-grand span, .t-modern .ipr-grand b { color: #fff; }
+.t-modern .ipr-foot { border-top: 3px solid var(--acc); border-image: var(--acc-bg) 1; }
+
+/* ===== 3) MINIMAL: black & white, thin lines ===== */
+.t-minimal .ipr-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #0f172a; }
+.t-minimal .ipr-brand h1 { font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.t-minimal .ipr-brand p { font-size: 11px; color: #64748b; }
+.t-minimal .ipr-titlebox { display: flex; flex-direction: column; text-align: right; }
+.t-minimal .ipr-title { font-size: 30px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+.t-minimal .ipr-num { font-size: 12px; color: #64748b; }
+.t-minimal .ipr-table th { color: #64748b; border-bottom: 1px solid #0f172a; padding-left: 0; }
+.t-minimal .ipr-table td { padding-left: 0; border-bottom: 1px solid #e5e7eb; }
+.t-minimal .ipr-table .r:last-child, .t-minimal .ipr-table td.r:last-child { padding-right: 0; }
+.t-minimal .ipr-grand { padding: 10px 0 0; border-top: 2px solid var(--acc); border-image: var(--acc-bg) 1; }
+.t-minimal .ipr-stamp { border-color: #0f172a; color: #0f172a; }
+
+/* ===== 4) CORPORATE: split header, striped table, boxed total ===== */
+.t-corporate .ipr-head { display: grid; grid-template-columns: 1fr auto; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+.t-corporate .ipr-brand { padding: 16px 18px; }
+.t-corporate .ipr-brand h1 { font-size: 20px; font-weight: 800; }
+.t-corporate .ipr-brand p { font-size: 11px; color: #475569; }
+.t-corporate .ipr-titlebox { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 16px 28px; background: var(--acc-bg); color: #fff; text-align: center; }
+.t-corporate .ipr-title { font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; }
+.t-corporate .ipr-num { font-size: 12px; opacity: 0.9; }
+.t-corporate .ipr-meta { padding: 12px 14px; border-left: 4px solid var(--acc); background: #f8fafc; }
+.t-corporate .ipr-table th { background: #0f172a; color: #fff; }
+.t-corporate .ipr-table tbody tr:nth-child(even) td { background: #f8fafc; }
+.t-corporate .ipr-grand { border: 2px solid var(--acc); border-radius: 8px; background: #fff; }
+.t-corporate .ipr-grand b { color: var(--acc); }
+
+/* ===== Print: show ONLY the invoice, centered on the page ===== */
+.ipr-print-root { display: none; }
+@page { size: A4; margin: 12mm; }
+@media print {
+  body.ipr-printing > *:not(.ipr-print-root) { display: none !important; }
+  body.ipr-printing { background: #fff !important; height: auto !important; overflow: visible !important; margin: 0 !important; }
+  body.ipr-printing .ipr-print-root { display: block; }
+}
+
+/* ===== Logo (cropped to the dome mark from the real logo file) ===== */
+.ipr-brand { display: flex; align-items: center; gap: 14px; }
+.ipr-brandtext { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ipr-logo { position: relative; flex: none; display: block; width: 22mm; aspect-ratio: 500 / 380; overflow: hidden; }
+.ipr-logo img { position: absolute; max-width: none; width: 287.2%; left: -6%; top: -10.53%; }
+.t-modern .ipr-logo { width: 26mm; }
+.t-classic .ipr-brand { flex-direction: column; gap: 4px; }
+.t-minimal .ipr-logo { width: 18mm; }
+.t-corporate .ipr-logo { width: 20mm; }
+
+/* ===== Extra polish ===== */
+.ipr-billto { padding: 10px 12px; border-left: 3px solid var(--acc); border-radius: 0 8px 8px 0; background: #f8fafc; }
+.t-minimal .ipr-billto { background: transparent; padding-left: 10px; }
+.ipr-table tbody tr:nth-child(even) td { background: #fafbfd; }
+.t-minimal .ipr-table tbody tr:nth-child(even) td { background: transparent; }
+.ipr-pay { border-left: 3px solid var(--acc); }
+.ipr-pay-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.ipr-pay-head small { margin: 0; }
+.ipr-chip { font-style: normal; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.ipr-chip.ok { background: #dcfce7; color: #15803d; }
+.ipr-chip.due { background: #fee2e2; color: #b91c1c; }
+
+
+/* ===== Layout v2: payment (left) + totals (right), status chips, richer header ===== */
+.ipr-summary { display: grid; grid-template-columns: 1fr 72mm; gap: 18px; align-items: start; margin-top: 16px; break-inside: avoid; }
+.ipr-summary-l { min-width: 0; }
+.ipr-summary .ipr-totals { width: auto; margin: 0; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+.ipr-summary .ipr-pay { margin-top: 0; }
+.ipr-summary .ipr-pay dl { grid-template-columns: 1fr; gap: 5px; }
+.ipr-summary .ipr-stamp { margin: 14px 0 0 12px; }
+.ipr-meta dd .ipr-chip { display: inline-block; }
+.t-modern .ipr-head { padding: 16px 18px; margin-top: 2px; border: 1px solid #e2e8f0; border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 9%, #fff), #fff 70%); }
+.t-modern .ipr-table { border: 1px solid #e2e8f0; border-radius: 10px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.t-modern .ipr-table th { border-top: 0; background: color-mix(in srgb, var(--acc) 8%, #fff); }
+.t-modern .ipr-table tbody tr:last-child td { border-bottom: 0; }
+.t-modern .ipr-table td:first-child { font-weight: 600; }
+.t-modern .ipr-table td { padding: 10px; }
+.t-modern .ipr-terms { padding: 10px 14px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+.t-modern .ipr-foot { margin-top: 18px; }
+
+/* ===== 5) TRADE: content/layout of the supplier invoice, modern look ===== */
+.t-trade { max-width: 186mm; display: flex; flex-direction: column; color: #0f172a; font: 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.t-trade .trd-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 16px 20px; border: 1px solid #e2e8f0; border-top: 5px solid var(--acc); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 8%, #fff), #fff 65%); }
+.t-trade .trd-from { display: flex; flex-direction: column; gap: 1px; min-width: 0; color: #475569; }
+.t-trade .trd-from h1 { align-self: flex-start; margin: 0 0 10px; padding: 4px 20px; border-radius: 999px; background: var(--acc-bg); color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; }
+.t-trade .trd-from u, .t-trade .trd-to u { text-decoration: none; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #64748b; }
+.t-trade .trd-from b { margin-top: 2px; font-size: 15px; color: #0f172a; }
+.t-trade .trd-vat { margin-top: 8px; font-weight: 600; color: #334155; }
+.t-trade .trd-logo { flex: none; width: 38mm; height: auto; max-height: 32mm; object-fit: contain; }
+
+.t-trade .trd-parties { margin-top: 14px; display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; align-items: stretch; }
+.t-trade .trd-to { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; min-height: 34mm; border: 1px solid #e2e8f0; border-left: 4px solid var(--acc); border-radius: 10px; background: #f8fafc; }
+.t-trade .trd-to b { margin: 3px 0 2px; font-size: 15px; }
+.t-trade .trd-to span { color: #475569; }
+.t-trade .trd-meta { display: flex; flex-direction: column; margin: 0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.t-trade .trd-meta > div { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 14px; }
+.t-trade .trd-meta > div:nth-child(odd) { background: #f8fafc; }
+.t-trade .trd-meta > div + div { border-top: 1px solid #e2e8f0; }
+.t-trade .trd-meta dt { margin: 0; color: #64748b; font-weight: 600; }
+.t-trade .trd-meta dd { margin: 0; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+
+.t-trade .trd-table { width: 100%; margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.t-trade .trd-table th { padding: 9px 10px; background: var(--acc-bg); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; text-align: left; }
+.t-trade .trd-table td { padding: 6px 10px; border-bottom: 1px solid #eef2f7; font-size: 11.5px; }
+.t-trade .trd-table tbody tr:nth-child(even) td { background: #f8fafc; }
+.t-trade .trd-table tbody tr:last-child td { border-bottom: 0; }
+.t-trade .trd-table tr { break-inside: avoid; }
+.t-trade .trd-table .q { width: 22mm; text-align: center; font-variant-numeric: tabular-nums; }
+.t-trade .trd-table .r { width: 28mm; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.t-trade .trd-table td.r:last-child { font-weight: 700; }
+
+.t-trade .trd-spacer { flex: 1; min-height: 8mm; }
+.t-trade .trd-cases { width: fit-content; margin: 0 0 8px; padding: 4px 14px; border: 1px solid #cbd5e1; border-radius: 999px; background: #f1f5f9; font-size: 11.5px; font-weight: 600; color: #334155; }
+.t-trade .trd-cases span { margin-left: 6px; color: var(--acc); font-weight: 800; }
+.t-trade .trd-bottom { display: grid; grid-template-columns: 1fr 76mm; gap: 18px; align-items: end; break-inside: avoid; }
+.t-trade .trd-bank { margin: 0; padding: 10px 14px; border: 1px solid #e2e8f0; border-left: 4px solid var(--acc); border-radius: 10px; background: #f8fafc; display: flex; flex-direction: column; gap: 4px; }
+.t-trade .trd-bank > div { display: grid; grid-template-columns: 32mm 1fr; gap: 8px; }
+.t-trade .trd-bank dt { margin: 0; color: #64748b; font-weight: 600; }
+.t-trade .trd-bank dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.t-trade .trd-totals { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; }
+.t-trade .trd-totals > div { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+.t-trade .trd-totals span { color: #475569; font-weight: 600; }
+.t-trade .trd-totals b { font-weight: 700; }
+.t-trade .trd-totals > div:nth-last-child(1), .t-trade .trd-totals > div:last-of-type { }
+.t-trade .trd-totals > div:not(.x):nth-of-type(4) { margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: var(--acc-bg); font-size: 14px; }
+.t-trade .trd-totals > div:not(.x):nth-of-type(4) span, .t-trade .trd-totals > div:not(.x):nth-of-type(4) b { color: #fff; font-weight: 800; }
+.t-trade .trd-left { display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; min-width: 0; }
+.t-trade .trd-paid { width: fit-content; margin: 4px 0 0 14px; padding: 1px 18px; border: 3px solid #16a34a; border-radius: 8px; color: #16a34a; font-style: normal; font-size: 20px; font-weight: 900; letter-spacing: 4px; transform: rotate(-5deg); }
+.t-trade .trd-terms { margin: 10px 0 0; white-space: pre-line; font-size: 11px; color: #475569; }
+.t-trade .trd-sign { margin: 18px 0 0; display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 10px; align-items: end; padding: 0 14mm; color: #475569; }
+.t-trade .trd-sign i { border-bottom: 1px solid #94a3b8; height: 1px; margin-bottom: 3px; }
+.t-trade .trd-pay { margin: 0; padding: 10px 14px; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 10px; background: #f0fdf4; display: flex; flex-direction: column; gap: 4px; }
+.t-trade .trd-pay > div { display: grid; grid-template-columns: 32mm 1fr; gap: 8px; }
+.t-trade .trd-pay dt { margin: 0; color: #64748b; font-weight: 600; }
+.t-trade .trd-pay dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.t-trade .trd-pay .trd-pay-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.t-trade .trd-pay .trd-pay-head b { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #15803d; }
+.t-trade .trd-pay .trd-pay-head em { padding: 1px 12px; border: 2px solid #16a34a; border-radius: 6px; background: #fff; color: #16a34a; font-style: normal; font-size: 12px; font-weight: 900; letter-spacing: 3px; }
+@media print { body.ipr-printing .t-trade { min-height: 268mm; } }
+.t-trade .trd-balance {
+  font-weight: 700;
+  border-top: 1px solid #000;
+  padding-top: 4px;
+}
+.t-trade .trd-balance b { font-size: 1.05em; }
+.t-trade .trd-balance {
+  font-weight: 700;
+  border-top: 1px solid #000;
+  padding-top: 4px;
+}
+.t-trade .trd-balance b { font-size: 1.05em; }
+.t-trade .trd-balance {
+  font-weight: 700;
+  border-top: 1px solid #000;
+  padding-top: 4px;
+}
+.t-trade .trd-balance b { font-size: 1.05em; }

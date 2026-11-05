@@ -1,0 +1,6 @@
+.lit-scroll { overflow-x: auto; }
+.lit { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.lit th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #3d4766; background: #f3f5fa; }
+.app.dark .lit th { background: #1a2547; color: var(--muted); }
+.lit td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
+.lit .r { text-align: right; }

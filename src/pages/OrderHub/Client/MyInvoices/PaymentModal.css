@@ -1,0 +1,17 @@
+.pay-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+.pay-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.pay-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 20px 8px; }
+.pay-head h3 { margin: 0 0 4px; font-size: 18px; }
+.pay-head p { margin: 0; color: #64748b; font-size: 14px; }
+.pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 20px; }
+.pay-methods button { padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #f8fafc; cursor: pointer; font-weight: 600; color: #475569; }
+.pay-methods button.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.pay-body { display: flex; flex-direction: column; gap: 12px; padding: 12px 20px; }
+.pay-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: #334155; }
+.pay-field input { padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: 400; }
+.pay-field input:focus { outline: none; border-color: #2563eb; }
+.pay-field input.has-error { border-color: #dc2626; }
+.pay-error { color: #dc2626; font-size: 12px; font-style: normal; font-weight: 400; }
+.pay-note { margin: 0; font-size: 12px; color: #64748b; }
+.pay-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 18px; }
+@media (max-width: 480px) { .pay-modal { max-width: 100%; } }

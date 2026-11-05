@@ -1,0 +1,26 @@
+/* Design tokens (colors, sizes, shadow) + dark theme overrides */
+
+:root {
+  --maroon: #9a0f2e;
+  --maroon-dark: #7d0b25;
+  --navy: #0e1a3a;
+  --navy-2: #0a1330;
+  --bg: #f1f4f9;
+  --card: #ffffff;
+  --text: #121a35;
+  --muted: #6b7690;
+  --border: #e6eaf2;
+  --green: #12a150;
+  --sidebar-w: 213px;
+  --sidebar-w-collapsed: 72px;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px rgba(16, 24, 40, 0.04);
+}
+.app.dark {
+  --bg: #0b1226;
+  --card: #131c36;
+  --text: #eef1fa;
+  --muted: #98a3c0;
+  --border: #243055;
+  --shadow: none;
+}

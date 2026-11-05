@@ -1,0 +1,241 @@
+/* Shared animated create / edit dialog (ListPage + GenericModulePage) */
+
+.erp-fm-backdrop{
+  --fm-accent:var(--maroon,#9a0f2e);
+  --fm-card:#fff; --fm-text:#172033; --fm-muted:#667085; --fm-border:#e4e7ec;
+  --fm-field:#f7f8fb; --fm-ring:rgba(154,15,46,.14); --fm-danger:#b42318; --fm-ok:#16a34a;
+  position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
+  padding:24px;box-sizing:border-box;overscroll-behavior:contain;
+  background:rgba(10,18,38,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:erpFmFade .22s ease both;
+}
+.erp-fm-backdrop.is-dark{
+  --fm-card:#161f36; --fm-text:#e8ecf6; --fm-muted:#9aa5bd; --fm-border:#2a3550;
+  --fm-field:#0f1729; --fm-ring:rgba(232,91,125,.24); --fm-danger:#ff8f86; --fm-ok:#4ade80;
+}
+.erp-fm-backdrop.is-closing{animation:erpFmFadeOut .17s ease both}
+.erp-fm-backdrop.is-closing .erp-fm{animation:erpFmPopOut .17s ease both}
+
+.erp-fm{
+  width:min(800px,100%);max-height:min(90vh,860px);max-height:min(90dvh,860px);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--fm-card);color:var(--fm-text);
+  border:1px solid var(--fm-border);border-radius:22px;
+  box-shadow:0 34px 100px rgba(10,18,38,.42);
+  animation:erpFmPop .36s cubic-bezier(.2,.9,.25,1.08) both;
+}
+.erp-fm.has-rail{width:min(990px,100%)}
+
+/* ---------- header ---------- */
+.erp-fm-head{
+  position:relative;flex:none;overflow:hidden;display:flex;align-items:center;gap:16px;
+  padding:22px 26px 26px;color:#fff;
+  background:linear-gradient(115deg,#8d0f2b 0%,#a1122f 42%,#3a3f9c 100%);
+}
+.erp-fm-head::before,.erp-fm-head::after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.erp-fm-head::before{right:-50px;top:-80px;width:250px;height:250px;background:radial-gradient(circle,rgba(255,255,255,.2),transparent 65%);animation:erpFmFloat 7s ease-in-out infinite}
+.erp-fm-head::after{left:30%;bottom:-110px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 65%);animation:erpFmFloat 9s ease-in-out infinite reverse}
+.erp-fm-head>*{position:relative;z-index:1}
+.erp-fm-badge{
+  flex:none;width:54px;height:54px;border-radius:17px;display:grid;place-items:center;font-size:22px;color:#fff;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  animation:erpFmBadge .55s .08s cubic-bezier(.3,1.6,.5,1) both;
+}
+.erp-fm-heading{min-width:0;flex:1}
+.erp-fm-eyebrow{margin:0;font-size:10px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.erp-fm-heading h2{margin:3px 0 4px;font-size:23px;line-height:1.2;color:#fff}
+.erp-fm-sub{margin:0;font-size:13px;color:rgba(255,255,255,.82)}
+.erp-fm-pct{
+  flex:none;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);font-variant-numeric:tabular-nums;
+}
+.erp-fm-close{
+  flex:none;width:38px;height:38px;border:0;border-radius:11px;cursor:pointer;font-size:16px;color:#fff;
+  background:rgba(255,255,255,.16);transition:transform .25s ease,background .15s;
+}
+.erp-fm-close:hover{transform:rotate(90deg);background:rgba(255,255,255,.3)}
+.erp-fm-close:disabled{opacity:.5;cursor:not-allowed}
+.erp-fm-progress{position:absolute!important;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.2);z-index:2!important}
+.erp-fm-progress span{display:block;height:100%;border-radius:0 4px 4px 0;background:linear-gradient(90deg,#ffd6df,#fff);transition:width .5s cubic-bezier(.2,.8,.25,1)}
+
+/* ---------- layout ---------- */
+.erp-fm-main{display:flex;flex:1;min-height:0}
+.erp-fm-form{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
+.erp-fm-body{position:relative;flex:1;min-height:0;overflow-y:auto;padding:22px 26px 10px;scroll-behavior:smooth}
+.erp-fm-group{margin-bottom:24px}
+.erp-fm-group:last-child{margin-bottom:8px}
+.erp-fm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.erp-fm-section{
+  display:flex;align-items:center;gap:12px;margin:0 0 14px;
+  font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--fm-muted);
+  animation:erpFmUp .4s ease both;
+}
+.erp-fm-section span{color:var(--fm-accent)}
+.erp-fm-section::after{content:"";flex:1;height:1px;background:var(--fm-border)}
+
+/* ---------- section rail ---------- */
+.erp-fm-rail{
+  flex:none;width:238px;overflow-y:auto;padding:20px 12px;box-sizing:border-box;
+  background:var(--fm-field);border-right:1px solid var(--fm-border);
+}
+.erp-fm-rail-title{margin:0 0 12px 10px;font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--fm-muted)}
+.erp-fm-step{
+  position:relative;display:flex;align-items:center;gap:11px;width:100%;margin-bottom:4px;padding:10px 11px;
+  font:inherit;font-size:13px;font-weight:650;text-align:left;color:var(--fm-muted);cursor:pointer;
+  background:transparent;border:0;border-radius:13px;
+  transition:background .2s,color .2s,box-shadow .2s,transform .2s;
+  animation:erpFmRail .42s cubic-bezier(.2,.8,.25,1) both;animation-delay:calc(var(--i,1) * 55ms + 160ms);
+}
+.erp-fm-step:hover{color:var(--fm-text);transform:translateX(2px)}
+.erp-fm-step.is-active{color:var(--fm-text);background:var(--fm-card);box-shadow:0 6px 18px rgba(10,18,38,.1)}
+.erp-fm-step.is-active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--fm-accent);animation:erpFmBar .3s ease both}
+.erp-fm-step-dot{
+  flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;
+  color:var(--fm-muted);background:var(--fm-card);border:2px solid var(--fm-border);transition:all .25s;
+}
+.erp-fm-step.is-active .erp-fm-step-dot{color:var(--fm-accent);border-color:var(--fm-accent)}
+.erp-fm-step.is-done .erp-fm-step-dot{color:#fff;background:var(--fm-ok);border-color:var(--fm-ok);animation:erpFmCheck .4s cubic-bezier(.3,1.6,.5,1) both}
+.erp-fm-step-text{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.erp-fm-step-text small{font-size:11px;font-weight:500;opacity:.75}
+
+/* ---------- fields ---------- */
+.erp-fm-field{
+  display:flex;flex-direction:column;gap:7px;min-width:0;
+  animation:erpFmUp .42s cubic-bezier(.2,.8,.25,1) both;animation-delay:calc(var(--i,0) * 34ms + 120ms);
+}
+.erp-fm-field.wide{grid-column:1/-1}
+.erp-fm-field label{font-size:12px;font-weight:650;color:var(--fm-text);transition:color .15s}
+.erp-fm-field label b{color:var(--fm-danger)}
+.erp-fm-field:focus-within label{color:var(--fm-accent)}
+
+.erp-fm-control{position:relative}
+.erp-fm-control input,.erp-fm-control select,.erp-fm-control textarea{
+  width:100%;box-sizing:border-box;min-height:46px;padding:11px 13px;
+  font:inherit;font-size:13px;color:var(--fm-text);
+  background:var(--fm-field);border:1px solid var(--fm-border);border-radius:12px;outline:none;
+  transition:border-color .18s,box-shadow .18s,background .18s;
+}
+.erp-fm-control textarea{min-height:96px;padding-bottom:26px;resize:vertical;line-height:1.5}
+.erp-fm-control input::placeholder,.erp-fm-control textarea::placeholder{color:var(--fm-muted);opacity:.65}
+.erp-fm-control input:hover,.erp-fm-control select:hover,.erp-fm-control textarea:hover{border-color:color-mix(in srgb,var(--fm-accent) 40%,var(--fm-border))}
+.erp-fm-control input:focus,.erp-fm-control select:focus,.erp-fm-control textarea:focus{
+  background:var(--fm-card);border-color:var(--fm-accent);box-shadow:0 0 0 4px var(--fm-ring);
+}
+.erp-fm-control.has-icon input{padding-left:40px}
+.erp-fm-control.has-state input{padding-right:40px}
+.erp-fm-control.is-invalid input{border-color:var(--fm-danger);box-shadow:0 0 0 4px color-mix(in srgb,var(--fm-danger) 14%,transparent)}
+.erp-fm-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--fm-muted);pointer-events:none;transition:color .18s}
+.erp-fm-control:focus-within .erp-fm-icon{color:var(--fm-accent)}
+.erp-fm-state{position:absolute;right:14px;top:50%;margin-top:-8px;font-size:15px;pointer-events:none;animation:erpFmCheck .4s cubic-bezier(.3,1.6,.5,1) both}
+.erp-fm-state.is-ok{color:var(--fm-ok)}
+.erp-fm-state.is-bad{color:var(--fm-danger)}
+.erp-fm-hint-text{margin:-2px 0 0;font-size:11.5px;color:var(--fm-danger);animation:erpFmUp .25s ease both}
+.erp-fm-count{position:absolute;right:12px;bottom:8px;font-size:11px;color:var(--fm-muted);pointer-events:none;font-variant-numeric:tabular-nums}
+.erp-fm-control.is-select select{appearance:none;-webkit-appearance:none;padding-right:38px;cursor:pointer}
+.erp-fm-chevron{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--fm-muted);pointer-events:none;transition:transform .2s,color .18s}
+.erp-fm-control.is-select:focus-within .erp-fm-chevron{color:var(--fm-accent);transform:translateY(-50%) rotate(180deg)}
+
+/* ---------- choice chips (short dropdowns) ---------- */
+.erp-fm-chips{position:relative;display:flex;flex-wrap:wrap;gap:8px}
+.erp-fm-chip{
+  --chip:#64748b;
+  display:inline-flex;align-items:center;gap:7px;padding:9px 14px;
+  font:inherit;font-size:12.5px;font-weight:650;color:var(--fm-text);cursor:pointer;
+  background:var(--fm-field);border:1px solid var(--fm-border);border-radius:999px;
+  transition:transform .15s,border-color .18s,background .18s,color .18s,box-shadow .18s;
+}
+.erp-fm-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--chip);opacity:.85}
+.erp-fm-chip:hover{transform:translateY(-2px);border-color:var(--chip)}
+.erp-fm-chip:focus-visible{outline:none;box-shadow:0 0 0 4px var(--fm-ring)}
+.erp-fm-chip.is-on{
+  color:var(--chip);border-color:var(--chip);
+  background:color-mix(in srgb,var(--chip) 12%,var(--fm-card));
+  box-shadow:0 6px 16px color-mix(in srgb,var(--chip) 25%,transparent);
+  animation:erpFmChip .32s cubic-bezier(.3,1.6,.5,1) both;
+}
+.erp-fm-chip.is-on::before{display:none}
+.erp-fm-chip.tone-green{--chip:#16a34a}
+.erp-fm-chip.tone-amber{--chip:#d97706}
+.erp-fm-chip.tone-blue{--chip:#2563eb}
+.erp-fm-chip.tone-red{--chip:#dc2626}
+.erp-fm-hidden{position:absolute;bottom:0;left:50%;width:1px;height:1px;opacity:0;pointer-events:none}
+
+/* ---------- error + footer ---------- */
+.erp-fm-error{
+  flex:none;display:flex;align-items:center;gap:9px;margin:10px 26px 0;padding:11px 14px;
+  font-size:13px;color:var(--fm-danger);
+  background:color-mix(in srgb,var(--fm-danger) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--fm-danger) 35%,transparent);border-radius:11px;
+  animation:erpFmShake .45s ease both;
+}
+.erp-fm-foot{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 26px 18px;margin-top:8px;border-top:1px solid var(--fm-border);background:var(--fm-card);
+}
+.erp-fm-foot-note{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;font-size:12px;font-weight:600;color:var(--fm-muted)}
+.erp-fm-foot-note i{font-size:11px;color:var(--fm-danger)}
+.erp-fm-foot-note.is-ok i{color:var(--fm-ok);font-size:13px;animation:erpFmCheck .4s cubic-bezier(.3,1.6,.5,1) both}
+.erp-fm-kbd{padding:3px 8px;font-size:10.5px;font-weight:600;color:var(--fm-muted);background:var(--fm-field);border:1px solid var(--fm-border);border-radius:7px}
+.erp-fm-actions{display:flex;align-items:center;gap:10px;flex:none}
+.erp-fm-btn{
+  height:42px;padding:0 20px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font:inherit;font-size:13px;font-weight:700;cursor:pointer;border-radius:11px;
+  transition:transform .15s ease,box-shadow .15s ease,background .15s,opacity .15s;
+}
+.erp-fm-cancel{color:var(--fm-text);background:transparent;border:1px solid var(--fm-border)}
+.erp-fm-cancel:hover:not(:disabled){background:var(--fm-field)}
+.erp-fm-primary{color:#fff;border:0;background:linear-gradient(90deg,#a1122f,#85102a);box-shadow:0 8px 18px rgba(154,15,46,.32)}
+.erp-fm-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px rgba(154,15,46,.42)}
+.erp-fm-primary:active:not(:disabled){transform:translateY(0)}
+.erp-fm-btn:disabled{opacity:.65;cursor:wait}
+
+/* page notices / errors get a small entrance animation too */
+.erp-notice,.gm-notice{animation:erpFmSlideDown .35s cubic-bezier(.2,.9,.25,1.1) both}
+.erp-error,.gm-error{animation:erpFmShake .45s ease both}
+
+/* ---------- keyframes ---------- */
+@keyframes erpFmFade{from{opacity:0}to{opacity:1}}
+@keyframes erpFmFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes erpFmPop{from{opacity:0;transform:translateY(30px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes erpFmPopOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(16px) scale(.97)}}
+@keyframes erpFmUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes erpFmRail{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes erpFmBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes erpFmBadge{from{opacity:0;transform:scale(.4) rotate(-25deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes erpFmCheck{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes erpFmChip{from{transform:scale(.9)}to{transform:scale(1)}}
+@keyframes erpFmFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,14px)}}
+@keyframes erpFmShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@keyframes erpFmSlideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes erpFmSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* ---------- responsive ---------- */
+@media(max-width:900px){
+  .erp-fm-rail{display:none}
+  .erp-fm.has-rail{width:min(800px,100%)}
+}
+@media(max-width:620px){
+  .erp-fm-backdrop{padding:0;align-items:flex-end}
+  .erp-fm{width:100%!important;max-height:94vh;max-height:94dvh;border-radius:24px 24px 0 0;animation:erpFmSheet .34s cubic-bezier(.2,.9,.25,1) both}
+  .erp-fm-head{padding:16px 18px 20px;gap:12px}
+  .erp-fm-badge{width:44px;height:44px;font-size:18px;border-radius:14px}
+  .erp-fm-heading h2{font-size:19px}
+  .erp-fm-pct{display:none}
+  .erp-fm-body{padding:16px 18px 6px}
+  .erp-fm-grid{grid-template-columns:1fr;gap:14px}
+  .erp-fm-field.wide{grid-column:auto}
+  .erp-fm-error{margin:10px 18px 0}
+  .erp-fm-foot{padding:12px 18px 16px;flex-direction:column;align-items:stretch;gap:10px}
+  .erp-fm-kbd{display:none}
+  .erp-fm-actions{width:100%}
+  .erp-fm-btn{flex:1}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .erp-fm-backdrop,.erp-fm,.erp-fm-head::before,.erp-fm-head::after,.erp-fm-badge,.erp-fm-field,.erp-fm-section,
+  .erp-fm-error,.erp-fm-step,.erp-fm-step::before,.erp-fm-state,.erp-fm-chip.is-on,.erp-fm-hint-text,
+  .erp-notice,.gm-notice,.erp-error,.gm-error{animation:none!important}
+  .erp-fm-primary,.erp-fm-close,.erp-fm-chip,.erp-fm-progress span,.erp-fm-body,
+  .erp-fm-control input,.erp-fm-control select,.erp-fm-control textarea{transition:none;scroll-behavior:auto}
+}

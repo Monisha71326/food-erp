@@ -1,0 +1,6 @@
+/* Delivery Challans page styles.
+   Everything here is scoped to .delivery-challans-page, so it can never leak into other pages.
+   Put Delivery Challans-only styles inside this block. */
+.delivery-challans-page {
+  /* add Delivery Challans-only styles here */
+}

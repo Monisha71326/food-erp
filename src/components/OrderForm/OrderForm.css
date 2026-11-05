@@ -1,0 +1,549 @@
+/* Order form: e-commerce catalogue (grid / list), separate cart page, add-to-cart popup */
+.oform, .oform-overlay, .oform-toast {
+  --brand: var(--maroon, #a1122f);
+  --brand-2: #8a0d28;
+  --ink: var(--text, #0f172a);
+  --muted: #64748b;
+  --line: var(--border, #e2e8f0);
+  --paper: var(--card, #fff);
+}
+.oform { position: relative; display: flex; flex-direction: column; gap: 16px; }
+.oform-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* ---------- Toolbar ---------- */
+.oform-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+}
+.oform-title { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+.oform-title h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; color: var(--ink); }
+.oform-title h3 i { color: var(--brand); }
+.oform-title span { font-size: 12px; color: var(--muted); }
+.oform-search {
+  display: flex; align-items: center; gap: 10px; min-width: 220px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.oform-search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(161, 18, 47, 0.1); }
+.oform-search input { flex: 1; min-width: 0; height: 38px; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
+
+.oform-chips, .oform-views { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; }
+.oform-chip, .oform-views button {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.oform-chip:hover, .oform-views button:hover { color: var(--ink); background: rgba(100, 116, 139, 0.1); }
+.oform-chip.on, .oform-views button.on { background: linear-gradient(90deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 4px 12px -4px rgba(161, 18, 47, 0.6); }
+.oform-chip b { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(100, 116, 139, 0.2); font-size: 11px; font-weight: 800; text-align: center; }
+.oform-chip.on b { background: rgba(255, 255, 255, 0.28); }
+
+/* cart button in the toolbar */
+.oform-cartbtn {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(90deg, #1e3a8a, #1e40af); color: #fff; font-size: 13px; font-weight: 700;
+  box-shadow: 0 8px 16px -10px rgba(30, 64, 175, 0.9); transition: filter 0.15s ease, transform 0.15s ease;
+}
+.oform-cartbtn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.oform-cartbtn b { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.25); font-size: 12px; font-weight: 800; text-align: center; }
+
+/* ---------- Product image + fallback ---------- */
+.oform-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* image wrapper: shimmer while loading, fade-in + zoom when loaded */
+.oform-imgwrap { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: rgba(100, 116, 139, 0.14); }
+.oform-imgwrap::before {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%);
+  background-size: 200% 100%; animation: oform-shimmer 1.2s linear infinite; transition: opacity 0.3s ease;
+}
+.oform-imgwrap.is-loaded::before { opacity: 0; animation: none; }
+.oform-imgwrap .oform-img { opacity: 0; transform: scale(1.08); transition: opacity 0.5s ease, transform 0.6s ease; }
+.oform-imgwrap.is-loaded .oform-img { opacity: 1; transform: scale(1); }
+@keyframes oform-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.oform-fallback { display: grid; place-items: center; color: #fff; font-weight: 800; letter-spacing: 1px; background-size: cover; }
+.oform-fallback b { font-size: clamp(14px, 28%, 34px); text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.oform-fallback.t0 { background: linear-gradient(135deg, #f43f5e, #a1122f); }
+.oform-fallback.t1 { background: linear-gradient(135deg, #3b82f6, #1e40af); }
+.oform-fallback.t2 { background: linear-gradient(135deg, #22c55e, #15803d); }
+.oform-fallback.t3 { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.oform-fallback.t4 { background: linear-gradient(135deg, #a855f7, #6d28d9); }
+.oform-fallback.t5 { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+
+/* ---------- Grid view ---------- */
+.oform-cards { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+.oform-card {
+  position: relative; display: flex; flex-direction: column; gap: 12px; padding: 12px 12px 14px;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  animation: oform-pop 0.45s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes oform-pop { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.oform-card:hover { transform: translateY(-3px); border-color: rgba(161, 18, 47, 0.45); box-shadow: 0 16px 26px -18px rgba(15, 23, 42, 0.6); }
+.oform-card.on { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(161, 18, 47, 0.08); }
+.oform-card-media {
+  position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; padding: 0; border: 0; border-radius: 12px; overflow: hidden; cursor: pointer;
+  background: rgba(100, 116, 139, 0.12);
+}
+.oform-card-media .oform-img { transition: transform 0.35s ease, opacity 0.5s ease; }
+.oform-card:hover .oform-card-media .oform-imgwrap.is-loaded .oform-img { transform: scale(1.06); }
+.oform-qty-badge {
+  position: absolute; top: 8px; right: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: var(--brand); color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.6);
+  animation: oform-bump 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+}
+@keyframes oform-bump { from { transform: scale(0.4); } to { transform: scale(1); } }
+.oform-card-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 2px; }
+.oform-card-name { font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+.oform-card-body small { font-size: 11.5px; color: var(--muted); }
+.oform-card-price { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 2px 0; border-top: 1px dashed var(--line); margin-top: auto; }
+.oform-card-price span { font-size: 11px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: var(--muted); }
+.oform-card-price strong { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.oform-add {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2)); color: #fff; font-size: 14px; font-weight: 700;
+  box-shadow: 0 8px 16px -10px rgba(161, 18, 47, 0.9); transition: filter 0.15s ease, transform 0.15s ease;
+}
+.oform-add:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.oform-add::after {
+  content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg); transition: left 0.6s ease;
+}
+.oform-add:hover::after { left: 130%; }
+
+/* ---------- Stepper (shared) ---------- */
+.oform-stepper { display: flex; align-items: stretch; height: 42px; border: 1px solid var(--brand); border-radius: 12px; overflow: hidden; background: var(--paper, #fff); }
+.oform-stepper button {
+  flex: 0 0 44px; border: 0; cursor: pointer; display: grid; place-items: center; font-size: 12px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2)); color: #fff; transition: filter 0.15s ease;
+}
+.oform-stepper button:hover:not(:disabled) { filter: brightness(1.15); }
+.oform-stepper button:active:not(:disabled) { filter: brightness(0.9); }
+.oform-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.oform-stepper button:focus-visible { outline: 2px solid #2563eb; outline-offset: -3px; }
+.oform-stepper input {
+  flex: 1; min-width: 0; width: 100%; padding: 0; border: 0; border-radius: 0; text-align: center; background: transparent; color: var(--ink, #0f172a);
+  font: inherit; font-size: 16px; font-weight: 800; -moz-appearance: textfield; appearance: textfield;
+}
+.oform-stepper input::-webkit-outer-spin-button, .oform-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.oform-stepper input:focus { outline: none; background: rgba(161, 18, 47, 0.06); }
+
+/* ---------- List view ---------- */
+.oform-list { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.oform-list ul { margin: 0; padding: 0; list-style: none; }
+.oform-list-head, .oform-row {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) 100px 150px 100px; align-items: center; gap: 14px;
+}
+.oform-list-head {
+  padding: 10px 16px; border-bottom: 2px solid var(--ink); font-size: 11px; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; color: var(--muted);
+}
+.oform-list-head span:nth-child(n + 3), .oform-row-price, .oform-row-total { text-align: right; }
+.oform-list-head span:nth-child(4) { text-align: center; }
+.oform-row {
+  padding: 10px 16px; border-bottom: 1px dashed var(--line); color: var(--ink); transition: background 0.15s ease;
+  animation: oform-pop 0.3s ease backwards; animation-delay: calc(var(--i, 0) * 35ms);
+}
+.oform-row:last-child { border-bottom: 0; }
+.oform-row:hover { background: rgba(161, 18, 47, 0.04); }
+.oform-row.on { background: rgba(161, 18, 47, 0.06); box-shadow: inset 4px 0 0 var(--brand); }
+.oform-row-img { width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex: none; }
+.oform-row-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.oform-row-info b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oform-row-info small { font-size: 11.5px; color: var(--muted); }
+.oform-row-price { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.oform-row-total { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.oform-row-qty .oform-stepper { height: 38px; }
+.oform-row-qty .oform-stepper button { flex-basis: 38px; }
+.oform-row-qty .oform-stepper input { font-size: 15px; }
+
+.oform-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; text-align: center; border: 2px dashed var(--line); border-radius: 16px; color: var(--muted); }
+.oform-empty i { font-size: 34px; opacity: 0.5; }
+.oform-empty p { margin: 0; font-size: 14px; max-width: 320px; }
+
+/* ---------- Bottom cart bar (shop page) ---------- */
+.oform-bar {
+  position: sticky; bottom: 14px; z-index: 20; display: flex; align-items: center; gap: 18px; padding: 12px 14px 12px 18px;
+  border-radius: 16px; color: #fff;
+  background: radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.35), transparent 55%), linear-gradient(160deg, #1e3a8a, #1e40af 60%, #172554);
+  box-shadow: 0 18px 36px -14px rgba(30, 64, 175, 0.8); animation: oform-rise 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+.oform-bar-info { display: flex; align-items: center; gap: 12px; margin-right: auto; min-width: 0; }
+.oform-bar-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.16); font-size: 16px; }
+.oform-bar-info div { display: flex; flex-direction: column; gap: 1px; }
+.oform-bar-info b { font-size: 15px; }
+.oform-bar-info small { font-size: 12px; opacity: 0.75; }
+.oform-bar-total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.oform-bar-total small { font-size: 11px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; opacity: 0.75; }
+.oform-bar-total strong { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.oform-bar-btn {
+  display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px; border: 0; border-radius: 12px; cursor: pointer;
+  background: #fff; color: #1e3a8a; font-size: 14px; font-weight: 800; transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.oform-bar-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.5); }
+
+/* ---------- CART PAGE ---------- */
+.ocart { display: flex; flex-direction: column; gap: 16px; animation: oform-pop 0.35s ease both; }
+.ocart-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+}
+.ocart-back {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--ink); font-size: 13px; font-weight: 700; transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ocart-back:hover { border-color: var(--brand); color: var(--brand); }
+.ocart-title { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+.ocart-title h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.ocart-title h3 i { color: var(--brand); }
+.ocart-title span { font-size: 12px; color: var(--muted); }
+.ocart-clear {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border: 1px solid var(--brand); border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--brand); font-size: 13px; font-weight: 700; transition: background 0.15s ease, color 0.15s ease;
+}
+.ocart-clear:hover { background: var(--brand); color: #fff; }
+
+.ocart-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+
+/* items list */
+.ocart-items { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.ocart-items ul { margin: 0; padding: 0; list-style: none; }
+.ocart-items-head, .ocart-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 150px 100px 34px; align-items: center; gap: 14px; }
+.ocart-items-head {
+  padding: 10px 16px; border-bottom: 2px solid var(--ink); font-size: 11px; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; color: var(--muted);
+}
+.ocart-items-head span:nth-child(3) { text-align: center; }
+.ocart-items-head span:nth-child(4) { text-align: right; }
+.ocart-row {
+  padding: 12px 16px; border-bottom: 1px dashed var(--line); color: var(--ink);
+  animation: oform-pop 0.3s ease backwards; animation-delay: calc(var(--i, 0) * 35ms);
+}
+.ocart-row:last-child { border-bottom: 0; }
+.ocart-img { width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex: none; }
+.ocart-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ocart-info b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ocart-info small { font-size: 12px; color: var(--muted); }
+.ocart-promo-tag {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-style: normal; font-size: 11px; font-weight: 800;
+  color: #15803d; background: rgba(34, 197, 94, 0.15);
+}
+.ocart-qty .oform-stepper { height: 38px; }
+.ocart-qty .oform-stepper button { flex-basis: 38px; }
+.ocart-qty .oform-stepper input { font-size: 15px; }
+.ocart-line { text-align: right; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ocart-remove {
+  width: 30px; height: 30px; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; font-size: 12px;
+  background: rgba(100, 116, 139, 0.14); color: var(--muted); transition: background 0.15s ease, color 0.15s ease;
+}
+.ocart-remove:hover { background: rgba(244, 63, 94, 0.9); color: #fff; }
+
+/* summary (promo + totals) */
+.ocart-summary {
+  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; padding: 22px; border-radius: 18px; color: #fff;
+  background: radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.35), transparent 50%), linear-gradient(160deg, #1e3a8a, #1e40af 55%, #172554);
+  box-shadow: 0 18px 36px -16px rgba(30, 64, 175, 0.7);
+}
+.ocart-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; opacity: 0.9; }
+
+.oform-promo { display: flex; flex-direction: column; gap: 6px; }
+.oform-promo label { font-size: 11px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; opacity: 0.75; }
+.oform-promo-row { display: flex; gap: 8px; }
+.oform-promo input {
+  flex: 1; min-width: 0; box-sizing: border-box; padding: 11px 12px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 13px; text-transform: uppercase;
+}
+.oform-promo input::placeholder { color: rgba(255, 255, 255, 0.55); text-transform: none; }
+.oform-promo input:focus { outline: none; border-color: #fff; background: rgba(255, 255, 255, 0.16); }
+.oform-promo input:disabled { opacity: 0.8; }
+.ocart-apply {
+  flex: 0 0 auto; padding: 0 18px; border: 0; border-radius: 10px; cursor: pointer; background: #fff; color: #1e3a8a; font-size: 13px; font-weight: 800;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.ocart-apply:hover:not(:disabled) { transform: translateY(-1px); }
+.ocart-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+.ocart-apply.remove { background: rgba(255, 255, 255, 0.16); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); }
+.oform-promo small { font-size: 12px; font-weight: 600; }
+.oform-promo small.ok { color: #86efac; }
+.oform-promo small.bad { color: #fecaca; }
+
+.oform-sum { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px dashed rgba(255, 255, 255, 0.35); }
+.oform-sum > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; }
+.oform-sum span { opacity: 0.8; }
+.oform-sum b { font-variant-numeric: tabular-nums; }
+.oform-sum .save b, .oform-sum .save span { color: #86efac; opacity: 1; }
+
+/* the separate TOTAL box */
+.ocart-total {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.ocart-total > span { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; opacity: 0.9; }
+.ocart-total div { display: flex; align-items: baseline; gap: 10px; }
+.ocart-total s { font-size: 14px; opacity: 0.6; }
+.ocart-total b { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.ocart-total b.bump { display: inline-block; animation: oform-total 0.35s ease; }
+@keyframes oform-total { 0% { transform: scale(1.18); color: #fde68a; } 100% { transform: scale(1); } }
+
+.oform-submit {
+  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 18px; border: 0; border-radius: 12px; cursor: pointer;
+  background: #fff; color: #1e3a8a; font-size: 15px; font-weight: 800; transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.oform-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.5); }
+.oform-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+.oform-submit:not(:disabled) { animation: oform-pulse 2.2s ease-in-out infinite; }
+@keyframes oform-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); } 50% { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); } }
+
+/* empty cart + order placed */
+.ocart-empty, .ocart-done {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; text-align: center;
+  background: var(--paper); border: 2px dashed var(--line); border-radius: 18px; color: var(--ink);
+}
+.ocart-empty > i { font-size: 40px; color: var(--muted); opacity: 0.6; animation: oform-float 2.4s ease-in-out infinite; }
+@keyframes oform-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.ocart-empty h4, .ocart-done h3 { margin: 0; font-size: 20px; font-weight: 800; }
+.ocart-empty p, .ocart-done p { margin: 0; max-width: 380px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.ocart-done { border-style: solid; border-color: rgba(34, 197, 94, 0.5); }
+.ocart-done-ring {
+  display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%; font-size: 28px; color: #fff;
+  background: linear-gradient(135deg, #22c55e, #15803d); box-shadow: 0 12px 24px -10px rgba(21, 128, 61, 0.8);
+  animation: oform-bump 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+}
+.ocart-btn {
+  display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 22px; margin-top: 6px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2)); color: #fff; font-size: 14px; font-weight: 800;
+  box-shadow: 0 10px 18px -10px rgba(161, 18, 47, 0.9); transition: filter 0.15s ease, transform 0.15s ease;
+}
+.ocart-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+/* ---------- Add to cart popup (rendered in document.body, always light) ---------- */
+.oform-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px;
+  background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); animation: oform-fade 0.18s ease both;
+}
+@keyframes oform-fade { from { opacity: 0; } to { opacity: 1; } }
+.oform-modal {
+  position: relative; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); width: min(780px, 100%); max-height: calc(100vh - 40px); overflow: auto;
+  background: #fff; color: #0f172a; border-radius: 22px; box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.6);
+  animation: oform-rise 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+@keyframes oform-rise { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+.oform-modal-x {
+  position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; background: rgba(15, 23, 42, 0.08); color: #0f172a; font-size: 14px; transition: background 0.15s ease;
+}
+.oform-modal-x:hover { background: rgba(161, 18, 47, 0.15); color: var(--brand); }
+.oform-modal-media { min-height: 260px; background: #f1f5f9; overflow: hidden; border-radius: 22px 0 0 22px; }
+.oform-modal-media .oform-imgwrap { min-height: 260px; }
+.oform-modal-media .oform-img { height: 100%; min-height: 260px; }
+.oform-modal-body { display: flex; flex-direction: column; gap: 14px; padding: 26px 26px 24px; }
+.oform-modal-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--brand); }
+.oform-modal-body h3 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; padding-right: 30px; }
+.oform-modal-body > small { color: #64748b; font-size: 12px; margin-top: -8px; }
+.oform-modal-price { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0; border-top: 1px dashed #e2e8f0; border-bottom: 1px dashed #e2e8f0; }
+.oform-modal-price span { font-size: 11px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: #64748b; }
+.oform-modal-price strong { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.oform-modal-field { display: flex; flex-direction: column; gap: 8px; }
+.oform-modal-field > label { font-size: 11px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: #64748b; }
+.oform-modal-field .oform-stepper { width: 170px; }
+.oform-modal-total { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 12px; background: #eff6ff; border: 1px solid #bfdbfe; }
+.oform-modal-total span { font-size: 13px; font-weight: 700; color: #1e40af; }
+.oform-modal-total div { display: flex; align-items: baseline; gap: 10px; }
+.oform-modal-total b { font-size: 24px; font-weight: 800; color: #1d4ed8; font-variant-numeric: tabular-nums; }
+.oform-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+.oform-modal-cancel {
+  flex: 0 0 auto; padding: 0 20px; height: 46px; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; background: #fff; color: #0f172a; font-size: 14px; font-weight: 700;
+}
+.oform-modal-cancel:hover { background: #f1f5f9; }
+.oform-modal-ok {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2)); color: #fff; font-size: 15px; font-weight: 800;
+  box-shadow: 0 10px 18px -10px rgba(161, 18, 47, 0.9); transition: filter 0.15s ease, transform 0.15s ease;
+}
+.oform-modal-ok:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.oform-modal-ok:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* toast */
+.oform-toast {
+  position: fixed; left: 50%; bottom: 28px; z-index: 1100; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px 10px 20px; border-radius: 999px; background: #0f172a; color: #fff; font-size: 14px; font-weight: 600;
+  box-shadow: 0 16px 30px -12px rgba(0, 0, 0, 0.6); animation: oform-toast 0.3s ease both;
+}
+.oform-toast i { color: #4ade80; }
+.oform-toast button {
+  margin-left: 6px; padding: 7px 14px; border: 0; border-radius: 999px; cursor: pointer; background: #fff; color: #0f172a; font-size: 13px; font-weight: 800;
+}
+.oform-toast button:hover { background: #e2e8f0; }
+@keyframes oform-toast { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ---------- Filter bar (category chips + sort) ---------- */
+.oform-filters {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; padding: 12px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+}
+.oform-cats { display: flex; flex-wrap: wrap; gap: 8px; }
+.oform-cat {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+}
+.oform-cat:hover { color: var(--ink); border-color: var(--brand); transform: translateY(-1px); }
+.oform-cat.on { background: linear-gradient(90deg, var(--brand), var(--brand-2)); border-color: transparent; color: #fff; box-shadow: 0 4px 12px -4px rgba(161, 18, 47, 0.6); }
+.oform-cat b { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: rgba(100, 116, 139, 0.2); font-size: 11px; font-weight: 800; text-align: center; }
+.oform-cat.on b { background: rgba(255, 255, 255, 0.28); }
+.oform-filter-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.oform-sort {
+  display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--paper);
+}
+.oform-sort:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(161, 18, 47, 0.1); }
+.oform-sort select { height: 36px; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.oform-sort select option { color: #0f172a; background: #fff; }
+.oform-clearf {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--brand); border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--brand); font-size: 13px; font-weight: 700; transition: background 0.15s ease, color 0.15s ease;
+}
+.oform-clearf:hover { background: var(--brand); color: #fff; }
+
+/* ---------- Dark mode (page only; the popup stays light) ---------- */
+.app.dark .oform { --muted: #94a3b8; }
+.app.dark .oform-row:hover, .app.dark .oform-row.on { background: rgba(244, 63, 94, 0.1); }
+.app.dark .oform-list-head, .app.dark .ocart-items-head { border-bottom-color: #e2e8f0; }
+.app.dark .oform-stepper input:focus { background: rgba(244, 63, 94, 0.1); }
+.app.dark .ocart-promo-tag { color: #86efac; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1000px) {
+  .ocart-grid { grid-template-columns: 1fr; }
+  .ocart-summary { position: static; }
+}
+@media (max-width: 720px) {
+  .oform-list-head, .ocart-items-head { display: none; }
+  .oform-row { grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "img info price" "qty qty total"; gap: 10px 12px; }
+  .oform-row-img { grid-area: img; }
+  .oform-row-info { grid-area: info; }
+  .oform-row-price { grid-area: price; }
+  .oform-row-qty { grid-area: qty; }
+  .oform-row-total { grid-area: total; }
+  .oform-row-qty .oform-stepper { width: 150px; }
+
+  .ocart-row { grid-template-columns: 56px minmax(0, 1fr) 30px; grid-template-areas: "img info remove" "qty qty line"; gap: 10px 12px; }
+  .ocart-img { grid-area: img; width: 56px; height: 56px; }
+  .ocart-info { grid-area: info; }
+  .ocart-remove { grid-area: remove; }
+  .ocart-qty { grid-area: qty; }
+  .ocart-qty .oform-stepper { width: 150px; }
+  .ocart-line { grid-area: line; align-self: center; }
+
+  .oform-modal { grid-template-columns: 1fr; }
+  .oform-modal-media { min-height: 180px; max-height: 220px; border-radius: 22px 22px 0 0; }
+  .oform-modal-media .oform-imgwrap { min-height: 180px; }
+  .oform-modal-media .oform-img { min-height: 180px; }
+  .oform-modal-body { padding: 20px; }
+}
+@media (max-width: 600px) {
+  .oform-search { min-width: 0; width: 100%; }
+  .oform-chips, .oform-views { width: 100%; }
+  .oform-chip, .oform-views button { flex: 1 1 auto; justify-content: center; }
+  .oform-cartbtn { width: 100%; justify-content: center; }
+  .oform-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .oform-card { padding: 8px 8px 12px; }
+  .oform-filters { flex-direction: column; align-items: stretch; }
+  .oform-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .oform-cat { flex: none; }
+  .oform-filter-right { justify-content: space-between; }
+  .oform-bar { gap: 12px; padding: 10px 10px 10px 14px; }
+  .oform-bar-ico { display: none; }
+  .oform-bar-btn { padding: 0 16px; }
+  .ocart-head { flex-direction: column; align-items: stretch; }
+  .ocart-back, .ocart-clear { justify-content: center; }
+  .oform-toast { width: calc(100% - 32px); border-radius: 18px; }
+}
+@media (max-width: 380px) { .oform-cards { grid-template-columns: 1fr; } }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .oform *, .oform-overlay *, .oform-toast { animation: none !important; transition: none !important; }
+}
+/* ===== ADD THIS AT THE VERY END OF OrderForm.css ===== */
+
+/* quantity box + add button + "View details" under each catalogue card */
+.oform-quick { display: grid; gap: 8px; }
+.oform-quick .oform-stepper { width: 100%; }
+.oform-quick .oform-stepper input { flex: 1; min-width: 0; text-align: center; }
+
+.oform-viewlink {
+  border: 0; background: transparent; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: #64748b;
+  padding: 4px 0; border-radius: 8px; text-align: center;
+}
+.oform-viewlink:hover { color: #9f1239; text-decoration: underline; }
+
+/* product name / photo that opens the detail popup */
+.oform-linkbtn {
+  border: 0; background: transparent; padding: 0; margin: 0;
+  font: inherit; font-weight: 700; color: inherit; text-align: left; cursor: pointer;
+}
+.oform-linkbtn:hover { text-decoration: underline; }
+.oform-card-media { cursor: zoom-in; }
+.oform-remark { margin: 14px 0 12px; }
+.oform-remark label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .85);
+  margin-bottom: 6px;
+}
+.oform-remark label em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .6; }
+.oform-remark textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.oform-remark textarea::placeholder { color: rgba(255, 255, 255, .5); }
+.oform-remark textarea:focus { border-color: #fff; background: rgba(255, 255, 255, .16); }
+.oform-remark small {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  color: rgba(255, 255, 255, .6);
+  margin-top: 4px;
+}
+/* ---------- Remark box inside the product details popup ---------- */
+.oform-modal-remark { display: flex; flex-direction: column; gap: 6px; }
+.oform-modal-remark label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.oform-modal-remark label em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: 0.7; }
+.oform-modal-remark textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.oform-modal-remark textarea::placeholder { color: #94a3b8; }
+.oform-modal-remark textarea:focus { border-color: var(--brand); background: #fff; }
+.oform-modal-remark small { text-align: right; font-size: 11px; color: #94a3b8; }

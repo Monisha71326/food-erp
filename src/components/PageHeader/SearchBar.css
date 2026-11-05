@@ -1,0 +1,77 @@
+.gs-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 440px;
+  height: 42px;
+  padding: 0 12px 0 16px;
+  background: #fff;
+  border: 1px solid #e3e6f0;
+  border-radius: 999px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* focus pannina outer pill mattum glow aagum */
+.gs-search:focus-within {
+  border-color: #b31232;
+  box-shadow: 0 0 0 4px rgba(179, 18, 50, 0.12);
+}
+
+.gs-icon {
+  color: #6b7390;
+  font-size: 14px;
+  flex: none;
+}
+
+/* input: no border, no shadow, no inner pill */
+.gs-search .gs-input,
+.gs-search .gs-input:focus,
+.gs-search .gs-input:focus-visible {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  font-size: 14px;
+  color: inherit;
+}
+.gs-input::placeholder { color: #8a92ad; }
+
+.gs-kbd {
+  flex: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7390;
+  background: #f3f4f9;
+  border: 1px solid #e3e6f0;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+/* dark mode */
+.app.dark .gs-search {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.app.dark .gs-search:focus-within {
+  border-color: #ff7d93;
+  box-shadow: 0 0 0 4px rgba(255, 125, 147, 0.18);
+}
+.app.dark .gs-kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #aab1cc;
+}
+
+/* phone: shortcut hint hide */
+@media (max-width: 640px) {
+  .gs-kbd { display: none; }
+  .gs-search { max-width: none; }
+}

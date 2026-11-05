@@ -1,0 +1,38 @@
+/* Low Stock Alerts card */
+.lowstock-card {
+  padding: 18px 20px;
+  min-width: 0;
+}
+
+.lowstock-card .cell-current { font-weight: 600; }
+
+/* header: title + View All */
+.lsa-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.lsa-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+
+.lsa-viewall {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  color: var(--maroon);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lsa-viewall svg { transition: transform 0.2s; }
+.lsa-viewall:hover { text-decoration: underline; }
+.lsa-viewall:hover svg { transform: translateX(4px); }
+
+/* the table must never touch / overflow the card edge */
+.lowstock-card .mini-table { width: 100%; }
+.lowstock-card .mini-table th:last-child,
+.lowstock-card .mini-table td:last-child { text-align: right; }

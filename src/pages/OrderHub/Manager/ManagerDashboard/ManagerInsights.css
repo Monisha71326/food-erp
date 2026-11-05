@@ -1,0 +1,97 @@
+/* ---------- highlight cards ---------- */
+.mi-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+.mi-stat {
+  --c: #a1122f; position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+  border-radius: 16px; border: 1px solid color-mix(in srgb, var(--c) 28%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 12%, transparent), transparent 70%), var(--card, #fff);
+  animation: miUp .55s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i) * 80ms);
+  transition: transform .25s, box-shadow .25s;
+}
+.mi-stat.t1 { --c: #a1122f; }
+.mi-stat.t2 { --c: #d97706; }
+.mi-stat.t3 { --c: #2563eb; }
+.mi-stat.t4 { --c: #2f9e6f; }
+.mi-stat:hover { transform: translateY(-4px); box-shadow: 0 16px 30px -18px color-mix(in srgb, var(--c) 70%, #000); }
+.mi-stat::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 60px; left: -80px; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent);
+  animation: miShine 3.6s ease-in-out infinite; animation-delay: calc(var(--i) * 450ms + 1s);
+}
+.mi-stat-ico {
+  display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 14px; font-size: 19px; color: #fff; background: var(--c);
+  animation: miFloat 3s ease-in-out infinite; animation-delay: calc(var(--i) * 300ms);
+}
+.mi-stat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mi-stat-body small { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.mi-stat-body b { font-size: 22px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-stat-body em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--c); }
+
+/* ---------- grids ---------- */
+.mi-grid { display: grid; gap: 14px; margin-bottom: 16px; }
+.mi-grid > * { min-width: 0; }
+.mi-grid-a { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mi-grid-b { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.mi-card { animation: miUp .55s cubic-bezier(.2, .7, .2, 1) backwards; transition: transform .25s, box-shadow .25s, border-color .25s; }
+.mi-grid > :nth-child(1) { animation-delay: .1s; }
+.mi-grid > :nth-child(2) { animation-delay: .18s; }
+.mi-grid > :nth-child(3) { animation-delay: .26s; }
+.mi-card:hover { transform: translateY(-4px); box-shadow: 0 16px 30px -18px rgba(15, 23, 42, .5); border-color: var(--maroon, #a1122f); }
+
+/* ---------- svg bits ---------- */
+.mi-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.mi-axis { font-size: 9.5px; fill: var(--muted); }
+.mi-base { stroke: var(--border); stroke-width: 1.5; }
+.mi-val { font-size: 10px; font-weight: 700; fill: currentColor; animation: miFade .4s ease-out backwards; }
+
+.mi-vbar { fill: #1e2a4a; opacity: .88; transform-box: fill-box; transform-origin: bottom; animation: miGrow .8s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i) * 90ms + .3s); transition: opacity .2s, filter .2s; }
+.mi-vbar.best { fill: #a1122f; opacity: 1; }
+.mi-vbar:hover { opacity: 1; filter: brightness(1.2); }
+
+.mi-thresh { stroke: #2f9e6f; stroke-dasharray: 4 4; opacity: .7; }
+.mi-stem { transform-box: fill-box; transform-origin: bottom; animation: miGrow .7s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--i) * 80ms + .3s); }
+.mi-pop { transform-box: fill-box; transform-origin: center; animation: miPop .5s cubic-bezier(.3, 1.6, .5, 1) backwards; animation-delay: calc(var(--i) * 80ms + .8s); transition: transform .15s; cursor: pointer; }
+.mi-pop:hover { transform: scale(1.5); }
+
+/* ---------- pipeline ---------- */
+.mi-pipe { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.mi-pipe li { display: grid; grid-template-columns: 82px minmax(0, 1fr) 28px; align-items: center; gap: 10px; font-size: 12.5px; }
+.mi-pipe-track { height: 14px; border-radius: 99px; background: var(--bg); overflow: hidden; display: flex; justify-content: center; }
+.mi-pipe-fill { height: 100%; border-radius: 99px; animation: miWidth 1s cubic-bezier(.2, .7, .2, 1) backwards; transition: filter .2s; }
+.mi-pipe li:hover .mi-pipe-fill { filter: brightness(1.15); }
+.mi-pipe b { text-align: right; }
+
+/* ---------- radar ---------- */
+.mi-radar-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.mi-radar { width: 100%; max-width: 230px; flex: none; }
+.mi-ring { fill: none; stroke: var(--border); stroke-width: 1; }
+.mi-poly { transform-origin: 110px 110px; stroke-width: 2.5; stroke-linejoin: round; animation: miScale 1.1s cubic-bezier(.2, .7, .2, 1) backwards; }
+.mi-poly-a { fill: rgba(161, 18, 47, .22); stroke: #a1122f; animation-delay: .4s; }
+.mi-poly-b { fill: rgba(37, 99, 235, .18); stroke: #2563eb; animation-delay: .6s; }
+.mi-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 12.5px; }
+.mi-legend li { display: flex; align-items: center; gap: 8px; }
+.mi-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* ---------- keyframes ---------- */
+@keyframes miUp { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes miGrow { from { transform: scaleY(0); } }
+@keyframes miWidth { from { width: 0; } }
+@keyframes miFade { from { opacity: 0; } }
+@keyframes miPop { from { transform: scale(0); opacity: 0; } }
+@keyframes miScale { from { transform: scale(0); opacity: 0; } }
+@keyframes miFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes miShine { 0% { left: -80px; } 40%, 100% { left: 120%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mi-stat, .mi-stat::after, .mi-stat-ico, .mi-card, .mi-vbar, .mi-stem, .mi-pop, .mi-pipe-fill, .mi-poly, .mi-val { animation: none; }
+}
+
+@media (max-width: 1280px) {
+  .mi-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mi-grid-a { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mi-grid-a > :nth-child(3) { grid-column: span 2; }
+}
+@media (max-width: 900px) { .mi-grid-b { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .mi-stats, .mi-grid-a { grid-template-columns: minmax(0, 1fr); }
+  .mi-grid-a > :nth-child(3) { grid-column: auto; }
+}

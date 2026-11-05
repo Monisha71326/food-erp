@@ -1,0 +1,7 @@
+/* Customers page styles (scoped to .customers-page) */
+
+.customers-page .name-cell { display: inline-flex; align-items: center; gap: 10px; }
+.customers-page .mini-avatar {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: #14214a; color: #fff; font-size: 10px; font-weight: 700;
+}

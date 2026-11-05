@@ -1,0 +1,19 @@
+.odm-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(10, 20, 40, 0.5);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.odm-modal {
+  background: #fff; color: #1b2233;
+  border-radius: 14px; width: 100%; max-width: 560px;
+  max-height: 90vh; overflow: auto; padding: 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.odm-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.odm-head h3 { margin: 0; }
+.odm-close { background: none; border: 0; font-size: 26px; cursor: pointer; color: inherit; }
+.odm-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+.odm-meta span { display: block; font-size: 12px; opacity: 0.7; margin-bottom: 2px; }
+.odm-lines { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 14px; }
+.odm-lines th, .odm-lines td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e3e7ef; }
+.odm-total { display: flex; justify-content: space-between; font-size: 16px; padding-top: 4px; }

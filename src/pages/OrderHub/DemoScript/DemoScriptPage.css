@@ -1,0 +1,4 @@
+.demo-script-page .demo-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 16px; font-size: 14px; }
+.demo-script-page .demo-steps li::marker { color: var(--maroon); font-weight: 700; }
+.demo-script-page .demo-steps p { font-size: 13px; margin-top: 3px; line-height: 1.5; }
+.demo-script-page .demo-note { font-size: 12px; margin-top: 4px; }

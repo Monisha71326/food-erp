@@ -1,0 +1,10 @@
+/* CardHeader: card title + 'View All' link or period dropdown */
+
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.card-head h2 { font-size: 14px; font-weight: 700; }
+.select-btn {
+  display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 7px; font-size: 11px;
+}
+.view-all { display: inline-flex; align-items: center; gap: 4px; color: var(--maroon); font-size: 11px; font-weight: 600; }
+.app.dark .view-all { color: #ff6f8a; }

@@ -1,0 +1,4 @@
+.sales-reporting-page .sum-value { font-size: 20px; }
+.sales-reporting-page .sr-bar { margin-bottom: 12px; }
+.sales-reporting-page .sr-track { height: 8px; border-radius: 5px; background: var(--bg); overflow: hidden; margin-top: 5px; }
+.sales-reporting-page .sr-track div { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #a1122f, #85102a); transition: width 0.5s ease; }
