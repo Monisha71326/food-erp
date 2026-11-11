@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader/PageHeader.jsx";
 import ErpFormModal from "@/components/ErpFormModal/ErpFormModal.jsx";
 import usePrintInvoice from "@/components/InvoicePrint/usePrintInvoice.jsx";
-import { createErpRecord, deleteErpRecord, getErpRecords, updateErpRecord } from "@/data/erpApi.js";
+import { createErpRecord, deleteErpRecord, getErpRecords, updateErpRecord, recordPayment } from "@/data/erpApi.js";
 import { approvePayment, rejectPayment, releaseInvoice } from "@/data/paymentApproval.js";
 import { currentUser } from "@/data/authStore.js";
+import { useHub, client as hubClient, orderTotal, addClient } from "@/data/orderHubStore.js";
 import { fmtDate } from "@/utils/format.js";
 import PaymentsView from "./PaymentsView.jsx";
 import "./GenericModulePage.css";
@@ -52,6 +53,136 @@ const iconForTitle = (title) => ICON_RULES.find(([re]) => re.test(title))?.[1] |
 /* how a customer wants to receive their invoices */
 const SHARE_VIA = ["Email", "WhatsApp", "SMS", "Post"];
 
+/* ---------- Customer ID + customer view (invoices & orders) ---------- */
+/* next free ID: CUS-0001, CUS-0002 ... (based on the highest existing one, so deletes never cause duplicates) */
+const nextCustomerId = (rows) => {
+  const max = rows.reduce((m, r) => {
+    const n = parseInt(String(r.customerId || "").replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+  return "CUS-" + String(max + 1).padStart(4, "0");
+};
+const norm = (v) => String(v ?? "").trim().toLowerCase();
+/* "98765 43210, 91234 56789" -> ["98765 43210", "91234 56789"] (trimmed, blanks removed) */
+const splitNumbers = (v) => String(v ?? "").split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean);
+/* does an invoice / order record belong to this customer? matches by Customer ID, record id, or name */
+const belongsTo = (customer, rec) => {
+  if (customer.customerId && norm(rec.customerId) === norm(customer.customerId)) return true;
+  if (rec.customerRecordId != null && String(rec.customerRecordId) === String(customer.id)) return true;
+  /* match by the customer's own name only (company is NOT used, or two contacts of one company would share records) */
+  const me = norm(customer.name);
+  return !!me && [rec.customerName, rec.customer, rec.client, rec.billTo].map(norm).some(n => n === me);
+};
+const statusClass = (s) => String(s || "Pending").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const todayKey = () => new Date().toISOString().slice(0, 10);
+/* same rule the Invoices page uses to show an invoice's status */
+const invoiceStatus = (r) => {
+  const st = String(r.status || "").toLowerCase();
+  if (st === "paid" || Number(r.balance || 0) <= 0) return "Paid";
+  if (r.pendingApproval) return "Pending Approval";
+  if (st === "draft") return "Draft";
+  if (st === "void") return "Void";
+  if (r.due && r.due < todayKey()) return "Overdue";
+  return st === "partially paid" ? "Partially Paid" : "Sent";
+};
+
+/* kind = "invoices" (Invoice#, Order, Date, Due, Status, Amount, Balance) or "orders" (Order, Placed by, Date, Status, Total) */
+function DocTable({ rows, kind, empty }) {
+  if (!rows.length) return <div className="gm-view-empty"><i className="fa-regular fa-folder-open" /> {empty}</div>;
+  const inv = kind === "invoices";
+  return <div className="gm-table-wrap"><table className="gm-table gm-view-table"><thead><tr>
+    <th>{inv ? "INVOICE#" : "ORDER"}</th>{inv ? <th>ORDER NO.</th> : <th>PLACED BY</th>}<th>DATE</th>{inv && <th>DUE</th>}<th>STATUS</th>
+    <th style={{ textAlign: "right" }}>{inv ? "AMOUNT" : "TOTAL"}</th>{inv && <th style={{ textAlign: "right" }}>BALANCE</th>}
+  </tr></thead><tbody>
+    {rows.map(r => <tr key={r.id}>
+      <td><strong>{r.number}</strong></td>
+      <td>{r.extra || "—"}</td>
+      <td>{r.date ? fmtDate(r.date) : "—"}</td>
+      {inv && <td>{r.due ? fmtDate(r.due) : "—"}</td>}
+      <td><span className={`gm-status ${statusClass(r.status)}`}>{r.status || "—"}</span></td>
+      <td style={{ textAlign: "right" }}>{money(r.amount)}</td>
+      {inv && <td style={{ textAlign: "right" }}>{money(r.balance)}</td>}
+    </tr>)}
+  </tbody></table></div>;
+}
+
+/* read-only customer page: profile + that customer's invoices (ERP records) and orders (Order Hub store) */
+function CustomerView({ customer, onClose, onEdit }) {
+  const hub = useHub();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("invoices");
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    getErpRecords("invoices")
+      .then(r => { if (alive) setInvoices((Array.isArray(r) ? r : []).filter(x => belongsTo(customer, x))
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+        .map(x => ({ id: x.id, number: x.number || `#${x.id}`, extra: x.order, date: x.date, due: x.due, status: invoiceStatus(x), amount: Number(x.amount || 0), balance: Number(x.balance || 0) }))); })
+      .catch(() => { if (alive) setInvoices([]); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [customer]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  /* orders come from the Order Hub store: order.clientId -> client name -> match this customer's name / company */
+  const me = norm(customer.name);
+  const orders = (hub?.orders || [])
+    .filter(o => !!me && norm(hubClient(o.clientId)?.name) === me)
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .map(o => ({ id: o.id, number: o.id, extra: o.placedBy, date: o.date, status: o.status, amount: orderTotal(o) }));
+
+  const billed = invoices.reduce((s, r) => s + r.amount, 0);
+  const outstanding = invoices.filter(r => !/paid|void|draft/i.test(r.status)).reduce((s, r) => s + r.balance, 0);
+  const details = [
+    ["Customer ID", customer.customerId], ["Company", customer.company], ["Email", customer.email], ["Phone", customer.phone],
+    ["WhatsApp", splitNumbers(customer.whatsapp).join("  ·  ")], ["Website", customer.website], ["Payment terms", customer.paymentTerms], ["Lead source", customer.source],
+    ["Invoices via", customer.shareVia ? `${customer.shareVia}${customer.shareTo ? " · " + customer.shareTo : ""}` : ""],
+    ["Address", [customer.address, customer.pincode].filter(Boolean).join(", ")],
+  ];
+
+  return <div className="gm-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="gm-modal gm-view" role="dialog" aria-modal="true" aria-label="Customer details">
+      <div className="gm-view-head">
+        <div>
+          <span className="gm-eyebrow">MEG ERP · CUSTOMER</span>
+          <h2>{customer.name || "Customer"} <span className="gm-view-id">{customer.customerId || `#${customer.id}`}</span></h2>
+          <span className={`gm-status ${statusClass(customer.status)}`}>{customer.status || "—"}</span>
+        </div>
+        <div className="gm-view-head-actions">
+          <button type="button" className="gm-btn gm-secondary" onClick={() => onEdit(customer)}><i className="fa-solid fa-pen" /> Edit</button>
+          <button type="button" className="gm-view-close" onClick={onClose} aria-label="Close">×</button>
+        </div>
+      </div>
+
+      <div className="gm-stats gm-view-stats">
+        <div className="gm-stat"><span>Invoices</span><strong>{loading ? "…" : invoices.length}</strong><small>Total billed {money(billed)}</small></div>
+        <div className="gm-stat"><span>Orders</span><strong>{orders.length}</strong><small>Linked to this customer</small></div>
+        <div className="gm-stat"><span>Outstanding</span><strong>{loading ? "…" : money(outstanding)}</strong><small>Unpaid invoices</small></div>
+      </div>
+
+      <div className="gm-view-details">
+        {details.filter(([, v]) => v).map(([k, v]) => <div key={k} className={k === "Address" ? "wide" : ""}><small>{k}</small><span>{v}</span></div>)}
+      </div>
+      {customer.notes && <p className="gm-view-notes"><small>Notes</small>{customer.notes}</p>}
+
+      <div className="gm-view-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "invoices"} className={tab === "invoices" ? "on" : ""} onClick={() => setTab("invoices")}>Invoices ({invoices.length})</button>
+        <button type="button" role="tab" aria-selected={tab === "orders"} className={tab === "orders" ? "on" : ""} onClick={() => setTab("orders")}>Orders ({orders.length})</button>
+      </div>
+      {tab === "invoices" && loading ? <div className="gm-view-empty">Loading…</div>
+        : tab === "invoices" ? <DocTable kind="invoices" rows={invoices} empty="No invoices for this customer yet." />
+        : <DocTable kind="orders" rows={orders} empty="No orders for this customer yet." />}
+    </div>
+  </div>;
+}
+
 const MODULE_FIELDS = [
   { match: /employee|staff|user|team|candidate|recruit/i, fields: [
     { key: "name", label: "Full Name", required: true, section: "Personal" }, { key: "employeeId", label: "Employee / Reference ID", section: "Personal" },
@@ -90,9 +221,12 @@ const MODULE_FIELDS = [
     { key: "description", label: "Description", type: "textarea", wide: true, section: "Description" },
   ]},
   { match: /customer|client|contact|lead/i, fields: [
+    /* auto-generated (CUS-0001...). readOnly: make sure ErpFormModal passes field.readOnly to the input */
+    { key: "customerId", label: "Customer ID", readOnly: true, placeholder: "Auto-generated", section: "Basic details" },
     { key: "name", label: "Contact / Customer Name", required: true, placeholder: "Enter full name", section: "Basic details" }, { key: "company", label: "Company Name", placeholder: "Company / business name", section: "Basic details" },
     { key: "email", label: "Email", type: "email", placeholder: "name@company.com", section: "Contact" }, { key: "phone", label: "Phone", type: "tel", placeholder: "+91...", section: "Contact" },
-    { key: "whatsapp", label: "WhatsApp Number", type: "tel", placeholder: "+91 98765 43210", section: "Contact" },
+    /* several numbers: one input per number + "Add number" (type "multi" is handled by ErpFormModal) */
+    { key: "whatsapp", label: "WhatsApp Numbers", type: "multi", placeholder: "+91 98765 43210", section: "Contact" },
     { key: "website", label: "Website", type: "url", placeholder: "https://", section: "Contact" },
     { key: "source", label: "Lead Source", placeholder: "Referral, website, event...", section: "Account" },
     { key: "paymentTerms", label: "Payment Terms", type: "select", options: ["Due on receipt", "Net 7", "Net 15", "Net 30", "Net 45", "Net 60"], section: "Account" },
@@ -137,6 +271,9 @@ export default function GenericModulePage({ title = "Module" }) {
   const noun = useMemo(() => singularOf(title), [title]);
   const isReceipts = entity === "receipts";   // per-row Print button shows only on the Receipts page
   const isPayments = entity === "payments";   // Approve / Reject only on Credit & Payments > Payments
+  const isCustomers = entity.includes("customer");   // Customer ID + View page (invoices & orders)
+  const hub = useHub();
+  const [viewing, setViewing] = useState(null);
   /* everyone except Client / Area Manager can approve (tighten this to your ERP Admin role key if needed) */
   const canApprove = !["client", "manager"].includes(currentUser()?.role);
   const [printInvoice, printPortal] = usePrintInvoice(money);
@@ -176,22 +313,45 @@ export default function GenericModulePage({ title = "Module" }) {
   };
   const openNew = () => {
     setEditing(null);
-    setForm(Object.fromEntries(fields.map(field => [field.key, defaultValue(field)])));
+    const initial = Object.fromEntries(fields.map(field => [field.key, defaultValue(field)]));
+    if (isCustomers) initial.customerId = nextCustomerId(rows);
+    setForm(initial);
     setError(""); setFormError(""); setNotice(""); setShowForm(true);
   };
   const openEdit = row => {
+    setViewing(null);
     setEditing(row);
-    setForm(Object.fromEntries(fields.map(field => [field.key, row[field.key] ?? ""])));
+    const initial = Object.fromEntries(fields.map(field => [field.key, row[field.key] ?? ""]));
+    /* older customers saved before IDs existed get one when edited */
+    if (isCustomers && !initial.customerId) initial.customerId = nextCustomerId(rows);
+    setForm(initial);
     setError(""); setFormError(""); setNotice(""); setShowForm(true);
   };
   const save = async event => {
     event.preventDefault(); setSaving(true); setFormError("");
     const data = { ...form };
+    if (isCustomers) {
+      /* never trust the form value: keep the existing ID, or issue a fresh one */
+      data.customerId = editing?.customerId || nextCustomerId(rows);
+      /* WhatsApp numbers: trim, remove blank rows and duplicates -> "n1, n2, n3" */
+      data.whatsapp = [...new Set(splitNumbers(data.whatsapp))].join(", ");
+    }
     fields.filter(field => field.type === "number").forEach(field => { data[field.key] = Number(data[field.key] || 0); });
     try {
       if (editing) await updateErpRecord(entity, editing.id, data);
       else await createErpRecord(entity, data);
-      setShowForm(false); setNotice(`${noun} ${editing ? "updated" : "created"} successfully.`);
+      /* make sure this customer also exists as an Order Hub client (so orders can be placed for them) */
+      let hubMsg = "";
+      if (isCustomers && data.name && !hub.clients.some(c => norm(c.name) === norm(data.name))) {
+        try {
+          const r = await addClient({
+            name: data.name, contact: data.name, email: data.email || "-", phone: data.phone || "",
+            pincode: data.pincode || "", creditLimit: 3000, address: data.address || "",
+          });
+          if (r && r.ok === false) hubMsg = ` (Order Hub client not created: ${r.msg || "rejected"})`;
+        } catch (err) { hubMsg = " (Order Hub client could not be created)"; }
+      }
+      setShowForm(false); setNotice(`${noun} ${editing ? "updated" : "created"} successfully.${hubMsg}`);
       await loadRows();
     } catch (e) { setFormError(e.message || "Save failed. Please try again."); }
     finally { setSaving(false); }
@@ -235,6 +395,18 @@ export default function GenericModulePage({ title = "Module" }) {
     await loadRows();
   };
 
+  /* Payments page > "Add payment": pick customer + invoice, save the payment and reduce that invoice's balance.
+     returns null on success, or an error message (the Add payment popup shows it) */
+  const createPayment = async (p) => {
+    setError("");
+    try {
+      await recordPayment(p);
+      setNotice(`Payment of ${money(p.amount)} recorded. Invoice ${p.invoice} balance updated.`);
+      await loadRows();
+      return null;
+    } catch (e) { return e.message || "Could not save the payment."; }
+  };
+
   const exportCsv = () => {
     const cols = [...new Set(["id", ...fields.map(field => field.key), "updatedAt"])];
     const csv = [cols.join(","), ...filtered.map(row => cols.map(key => `"${String(row[key] ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -273,6 +445,7 @@ export default function GenericModulePage({ title = "Module" }) {
         onApprove={(row) => decide(row, true)} onReject={(row, reason) => decide(row, false, reason)}
         onApproveMany={approveMany}
         onEdit={openEdit} onDelete={remove} onNew={openNew}
+        onCreate={createPayment}
       />
     ) : <>
     <div className="gm-stats">
@@ -283,7 +456,8 @@ export default function GenericModulePage({ title = "Module" }) {
     <section className="gm-panel">
       <div className="gm-toolbar"><div><h2>{title} records</h2><p>{loading ? "Loading…" : `${filtered.length} record${filtered.length === 1 ? "" : "s"} shown`}</p></div><div className="gm-filters"><label className="gm-search"><i className="fa-solid fa-magnifying-glass"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder={`Search ${title.toLowerCase()}...`} /></label><select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status">{statusOptions.map(option => <option key={option}>{option}</option>)}</select></div></div>
       <div className="gm-table-wrap"><table className="gm-table"><thead><tr><th>{title.toUpperCase()} DETAILS</th><th>REFERENCE / DETAILS</th><th>OWNER / CONTACT</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>
-      {!loading && filtered.map(row => <tr key={row.id}><td><strong>{row[primaryKey] || row.name || `${noun} #${row.id}`}</strong><small>Record ID: {row.id}</small></td><td>{row[secondaryKey] || row.reference || row.code || "—"}</td><td>{row.owner || row.assignedTo || row.email || row.supplier || row.department || "—"}</td><td><span className={`gm-status ${String(row.status || "Pending").toLowerCase().replace(/\s+/g, "-")}`}>{row.status || "—"}</span></td><td><div className="gm-row-actions">
+      {!loading && filtered.map(row => <tr key={row.id}><td><strong>{row[primaryKey] || row.name || `${noun} #${row.id}`}</strong><small>{isCustomers ? `Customer ID: ${row.customerId || "—"}` : `Record ID: ${row.id}`}</small></td><td>{row[secondaryKey] || row.reference || row.code || "—"}</td><td>{row.owner || row.assignedTo || row.email || row.supplier || row.department || "—"}</td><td><span className={`gm-status ${String(row.status || "Pending").toLowerCase().replace(/\s+/g, "-")}`}>{row.status || "—"}</span></td><td><div className="gm-row-actions">
+        {isCustomers && <button type="button" title="View customer, invoices & orders" onClick={() => setViewing(row)} aria-label="View customer"><i className="fa-solid fa-eye"/></button>}
         {isReceipts && <button type="button" title="Print receipt" onClick={() => printReceipt(row)} aria-label="Print receipt"><i className="fa-solid fa-print"/></button>}
         <button type="button" title="Edit record" onClick={() => openEdit(row)} aria-label="Edit record"><i className="fa-solid fa-pen"/></button>
         <button type="button" title="Delete record" onClick={() => remove(row)} aria-label="Delete record"><i className="fa-solid fa-trash"/></button>
@@ -303,6 +477,7 @@ export default function GenericModulePage({ title = "Module" }) {
       submitLabel={editing ? "Save Changes" : `Create ${noun}`}
       onSubmit={save} onClose={() => setShowForm(false)}
     />}
+    {viewing && <CustomerView customer={viewing} onClose={() => setViewing(null)} onEdit={openEdit} />}
     {printPortal}
   </div>;
 }

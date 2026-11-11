@@ -93,13 +93,15 @@ export const pageRegistry = {
   Orders: OrdersPage,
   "POD Matching": PodMatchingPage,
   "POD Auto-Match (AI)": PodAutoMatchPage,
+  "POD Auto-Match": PodAutoMatchPage, // the sidebar menu label is "POD Auto-Match" (without "(AI)")
   Backorders: BackordersPage,
   "Live Managers": LiveManagersPage, // NEW
   "Shipping (DPD)": ShippingPage,
   "Admin Demo Script": AdminDemoScriptPage,
 
   // Order Hub - Sales & Marketing
-  "Products & Pricing": ProductsPricingPage,
+  "Products & Services": ProductsPricingPage, // sidebar label (renamed from "Products & Pricing")
+  "Products & Pricing": ProductsPricingPage, // old name kept so anything still using it keeps working
   Promotions: PromotionsPage,
   "Sales Reporting": SalesReportingPage,
 

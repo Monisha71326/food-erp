@@ -28,6 +28,8 @@ const METHODS = [
   { id: "Cheque", icon: "fa-money-check", sub: "Enter cheque details" },
   { id: "Cash", icon: "fa-money-bill-wave", sub: "Paid in cash" },
 ];
+/* clients can only pay Online. Cheque and Cash are for staff (Admin / Area Manager) only. */
+const CLIENT_METHODS = ["Online"];
 const METHOD_ICON = { Online: "fa-globe", Cheque: "fa-money-check", Cash: "fa-money-bill-wave" };
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const initials = (n) =>
@@ -58,11 +60,14 @@ function PayPanel({ invoice, onDone, staff }) {
   const managers = s.areaManagers || [];
   const due = round2(invoice.amount - (invoice.paid || 0)); // balance left after any part payments
 
+  /* staff: Online / Cheque / Cash.  client: Online only */
+  const methods = staff ? METHODS : METHODS.filter((m) => CLIENT_METHODS.includes(m.id));
+
   const [step, setStep] = useState("idle"); // idle | choose
   const [method, setMethod] = useState("Online");
   const [amount, setAmount] = useState(String(due)); // editable payment amount
 
-  // who received the payment: an area manager (default = this client's manager) or "OTHER" person
+  // who received the payment (STAFF ONLY): an area manager (default = this client's manager) or "OTHER" person
   const [recvId, setRecvId] = useState(clientManager(invoice.clientId)?.id || managers[0]?.id || "OTHER");
   const [other, setOther] = useState({ name: "", email: "" });
 
@@ -85,27 +90,33 @@ function PayPanel({ invoice, onDone, staff }) {
   const amt = round2(parseFloat(amount));
 
   const validate = () => {
-    if (!amt || amt <= 0) return "Amount venum (0-ku mela)";
-    if (amt > due) return `Amount ${gbp(due)}-ku mela irukka koodathu`;
-    if (!recvName) return isOther ? "Received by (name) venum" : "Payment receive panna aal select pannunga";
-    if (!EMAIL_RE.test(recvEmail)) {
-      return isOther
-        ? "Receiver-oda sariyaana email venum"
-        : `${recvName}-ku email illa. Vera aal select pannunga illa "Other person" use pannunga`;
+    if (!staff && method !== "Online") return "Clients can pay online only.";
+    if (!amt || amt <= 0) return "Enter an amount above 0";
+    if (amt > due) return `Amount cannot be more than ${gbp(due)}`;
+
+    /* "Payment received by" is asked from staff only - clients do not see it */
+    if (staff) {
+      if (!recvName) return isOther ? "Enter the name of who received the payment" : "Select who received the payment";
+      if (!EMAIL_RE.test(recvEmail)) {
+        return isOther
+          ? "Enter a valid receiver email"
+          : `${recvName} has no email on file. Select someone else or use "Other person"`;
+      }
     }
+
     if (method === "Online") {
-      if (!online.payerName.trim()) return "Payer name venum";
-      if (!online.reference.trim()) return "Transaction reference venum";
-      if (!online.paidOn) return "Payment date venum";
+      if (!online.payerName.trim()) return "Enter the payer name";
+      if (!online.reference.trim()) return "Enter the transaction reference";
+      if (!online.paidOn) return "Select the payment date";
     } else if (method === "Cheque") {
-      if (!/^\d{6}$/.test(cheque.chequeNo.trim())) return "6-digit cheque number venum";
-      if (!cheque.bankName.trim()) return "Bank name venum";
-      if (!cheque.accountHolder.trim()) return "Account holder name venum";
-      if (!cheque.chequeDate) return "Cheque date venum";
-      if (!cheque.chequePhoto) return "Cheque photo venum";
+      if (!/^\d{6}$/.test(cheque.chequeNo.trim())) return "Enter a 6-digit cheque number";
+      if (!cheque.bankName.trim()) return "Enter the bank name";
+      if (!cheque.accountHolder.trim()) return "Enter the account holder name";
+      if (!cheque.chequeDate) return "Select the cheque date";
+      if (!cheque.chequePhoto) return "Upload the cheque photo";
     } else {
-      if (!cash.payerName.trim()) return "Paid by (name) venum";
-      if (!cash.paidOn) return "Payment date venum";
+      if (!cash.payerName.trim()) return "Enter who paid (name)";
+      if (!cash.paidOn) return "Select the payment date";
     }
     return "";
   };
@@ -128,9 +139,10 @@ function PayPanel({ invoice, onDone, staff }) {
       accountHolder: method === "Cheque" ? cheque.accountHolder.trim() : "",
       date,
       chequePhoto: method === "Cheque" ? cheque.chequePhoto : "",
-      receivedBy: recvName,
-      receiverEmail: recvEmail.toLowerCase(),
-      managerId: isOther ? "" : recvId,
+      /* client pays online: no receiver is asked, so it is saved as "Online payment" */
+      receivedBy: staff ? recvName : "Online payment",
+      receiverEmail: staff ? recvEmail.toLowerCase() : "",
+      managerId: staff && !isOther ? recvId : "",
     });
     setBusy(false);
     if (r.ok) onDone(r.msg);
@@ -170,29 +182,34 @@ function PayPanel({ invoice, onDone, staff }) {
             </button>
           )}
 
-          <p className="invd-pay-label">Payment received by</p>
-          <select
-            className="invd-input invd-input-dark" value={recvId}
-            onChange={(e) => { setRecvId(e.target.value); setError(""); }}
-          >
-            {managers.map((m) => <option key={m.id} value={m.id}>{m.name} (Area Manager)</option>)}
-            <option value="OTHER">Other person</option>
-          </select>
-
-          {isOther ? (
+          {/* Payment received by - STAFF ONLY (hidden for clients) */}
+          {staff && (
             <>
-              <input className="invd-input invd-input-dark" placeholder="Received by (name) *"
-                value={other.name} onChange={(e) => setOt("name", e.target.value)} maxLength={60} />
-              <input className="invd-input invd-input-dark" type="email" placeholder="Receiver email *"
-                value={other.email} onChange={(e) => setOt("email", e.target.value)} maxLength={80} />
+              <p className="invd-pay-label">Payment received by</p>
+              <select
+                className="invd-input invd-input-dark" value={recvId}
+                onChange={(e) => { setRecvId(e.target.value); setError(""); }}
+              >
+                {managers.map((m) => <option key={m.id} value={m.id}>{m.name} (Area Manager)</option>)}
+                <option value="OTHER">Other person</option>
+              </select>
+
+              {isOther ? (
+                <>
+                  <input className="invd-input invd-input-dark" placeholder="Received by (name) *"
+                    value={other.name} onChange={(e) => setOt("name", e.target.value)} maxLength={60} />
+                  <input className="invd-input invd-input-dark" type="email" placeholder="Receiver email *"
+                    value={other.email} onChange={(e) => setOt("email", e.target.value)} maxLength={80} />
+                </>
+              ) : (
+                <input className="invd-input invd-input-dark" value={recvEmail} readOnly placeholder="Manager email" />
+              )}
             </>
-          ) : (
-            <input className="invd-input invd-input-dark" value={recvEmail} readOnly placeholder="Manager email" />
           )}
 
           <p className="invd-pay-label">Choose payment method</p>
           <div className="invd-methods">
-            {METHODS.map((m) => (
+            {methods.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -218,7 +235,7 @@ function PayPanel({ invoice, onDone, staff }) {
             </>
           )}
 
-          {method === "Cheque" && (
+          {staff && method === "Cheque" && (
             <>
               <input className="invd-input invd-input-dark" placeholder="Cheque number (6 digits) *" inputMode="numeric" maxLength={6}
                 value={cheque.chequeNo} onChange={(e) => setC("chequeNo", e.target.value.replace(/\D/g, ""))} />
@@ -237,7 +254,7 @@ function PayPanel({ invoice, onDone, staff }) {
             </>
           )}
 
-          {method === "Cash" && (
+          {staff && method === "Cash" && (
             <>
               <input className="invd-input invd-input-dark" placeholder="Paid by (name) *"
                 value={cash.payerName} onChange={(e) => setCa("payerName", e.target.value)} maxLength={60} />
@@ -259,7 +276,7 @@ function PayPanel({ invoice, onDone, staff }) {
 }
 
 /* ---------- All payments of this invoice (part payments) - timeline with running balance ---------- */
-function PaymentHistory({ payments, total }) {
+function PaymentHistory({ payments, total, staff }) {
   if (!payments.length) return null;
   const totalNum = Number(total || 0);
   let running = totalNum;
@@ -306,13 +323,16 @@ function PaymentHistory({ payments, total }) {
                 <span className="invd-tl-bal">Balance after: <b>{gbp(p.after)}</b></span>
               </div>
 
-              <div className="invd-tl-recv">
-                <span className="invd-tl-avatar">{initials(p.receivedBy)}</span>
-                <div>
-                  <b>{p.receivedBy || "-"}</b>
-                  <small>{p.receiverEmail || "-"}</small>
+              {/* who received the payment - staff only */}
+              {staff && (
+                <div className="invd-tl-recv">
+                  <span className="invd-tl-avatar">{initials(p.receivedBy)}</span>
+                  <div>
+                    <b>{p.receivedBy || "-"}</b>
+                    <small>{p.receiverEmail || "-"}</small>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </li>
         ))}
@@ -322,7 +342,7 @@ function PaymentHistory({ payments, total }) {
 }
 
 /* ---------- Payment ticket / receipt (Paid invoices) ---------- */
-function Receipt({ payment, clientName, onPrint }) {
+function Receipt({ payment, clientName, onPrint, staff }) {
   if (!payment) {
     return (
       <aside className="invd-card invd-paid-note">
@@ -339,8 +359,13 @@ function Receipt({ payment, clientName, onPrint }) {
     ["Payment date", fmtDate(payment.date)],
     ["Method", payment.method],
     ["Reference", payment.reference || "-"],
-    ["Received by", payment.receivedBy || "-"],
-    ["Receiver email", payment.receiverEmail || "-"],
+    /* receiver details are shown to staff only */
+    ...(staff
+      ? [
+          ["Received by", payment.receivedBy || "-"],
+          ["Receiver email", payment.receiverEmail || "-"],
+        ]
+      : []),
   ];
   return (
     <aside className="invd-receipt-wrap">
@@ -388,7 +413,7 @@ function Receipt({ payment, clientName, onPrint }) {
 
 /* ---------- Print-only sheet for the payment RECEIPT (logo, centered on the page).
    The invoice itself prints with the template saved in Settings -> Invoice Templates. ---------- */
-function PrintSheet({ mode, invoice, order, clientName, payment }) {
+function PrintSheet({ mode, invoice, order, clientName, payment, staff }) {
   const isPaid = String(invoice.status).toLowerCase() === "paid";
   const isReceipt = mode === "receipt" && payment;
   const meta = [
@@ -404,8 +429,13 @@ function PrintSheet({ mode, invoice, order, clientName, payment }) {
         ["Payment date", fmtDate(payment.date)],
         ["Method", payment.method],
         ["Reference", payment.reference || "-"],
-        ["Received by", payment.receivedBy || "-"],
-        ["Receiver email", payment.receiverEmail || "-"],
+        /* receiver details are printed for staff only */
+        ...(staff
+          ? [
+              ["Received by", payment.receivedBy || "-"],
+              ["Receiver email", payment.receiverEmail || "-"],
+            ]
+          : []),
       ]
     : [];
 
@@ -710,7 +740,7 @@ export default function InvoiceDetail({ invoiceId, onBack, staff = false, backLa
   const [printMode, setPrintMode] = useState("receipt");
   const tpl = useInvoiceTemplate(); // template chosen in Settings -> Invoice Templates
 
-  // CHANGED: "Report a Mistake" is visible only to Area Manager and ERP (staff). Clients do not see it.
+  // "Report a Mistake" is visible only to Area Manager and ERP (staff). Clients do not see it.
   const canReport = staff;
 
   const invoice = s.invoices.find((i) => i.id === invoiceId);
@@ -760,7 +790,7 @@ export default function InvoiceDetail({ invoiceId, onBack, staff = false, backLa
     }, 80);
   };
 
-  // CHANGED: Report a Mistake -> staff only. My Tickets -> hidden unless SHOW_TICKETS_TAB is true.
+  // Report a Mistake -> staff only. My Tickets -> hidden unless SHOW_TICKETS_TAB is true.
   const visibleTabs = tabs
     .filter((t) => (t.id === "mistake" ? canReport : true))
     .filter((t) => SHOW_TICKETS_TAB || t.id !== "tickets");
@@ -868,11 +898,11 @@ export default function InvoiceDetail({ invoiceId, onBack, staff = false, backLa
               </div>
               <div className="invd-sheet-edge" aria-hidden="true" />
 
-              <PaymentHistory payments={payments} total={invoice.amount} />
+              <PaymentHistory payments={payments} total={invoice.amount} staff={staff} />
             </div>
 
             {isPaid
-              ? <Receipt payment={payment} clientName={c?.name || "-"} onPrint={doPrint} />
+              ? <Receipt payment={payment} clientName={c?.name || "-"} onPrint={doPrint} staff={staff} />
               : (
                 <PayPanel
                   key={`${invoice.id}-${paidSoFar}`}
@@ -891,7 +921,7 @@ export default function InvoiceDetail({ invoiceId, onBack, staff = false, backLa
             managerId={s.session.managerId}
           />
         )}
-        {/* CHANGED: guarded with canReport so a client can never open it */}
+        {/* guarded with canReport so a client can never open it */}
         {tab === "mistake" && canReport && (
           <MistakeForm invoice={invoice} order={order} onDone={(m) => done(m, "tickets")} />
         )}
@@ -900,7 +930,7 @@ export default function InvoiceDetail({ invoiceId, onBack, staff = false, backLa
 
       {/* "Print invoice" uses the saved template; "Print receipt" uses the receipt sheet */}
       <InvoicePrintPortal tpl={tpl} data={docData} money={money} />
-      <PrintSheet mode={printMode} invoice={invoice} order={order} clientName={c?.name || "-"} payment={payment} />
+      <PrintSheet mode={printMode} invoice={invoice} order={order} clientName={c?.name || "-"} payment={payment} staff={staff} />
     </div>
   );
 }

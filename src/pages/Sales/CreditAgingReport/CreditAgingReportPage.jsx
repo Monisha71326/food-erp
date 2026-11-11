@@ -5,9 +5,11 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 /* ==================================================================
    Credit Aging Report  (Sales & Invoice -> Credit Aging Report)
-   - Client name, total and 0-29 / 30-59 / 60-89 / 90-119 / 120+ day
+   - Client name, total and 0-29 / 30-59 / 60-89 / 90+ (Bad Credit) day
      amounts are CALCULATED from your real invoices (nothing hard-coded).
    - Click a client row to see the invoices behind the numbers.
+   - "Check all dates" lists EVERY unpaid invoice with its invoice date,
+     due date, days old and bucket, and flags missing / invalid dates.
    ================================================================== */
 
 const CURRENCY = "£";      // change to "" for no symbol, or "₹" etc.
@@ -17,13 +19,27 @@ const LOCALE = "en-GB";    // "en-IN" gives 1,91,43,375.00 style grouping
 const INCLUDE_ORDER_HUB = false;
 const AGE_FROM = "invoiceDate"; // "invoiceDate" | "dueDate"
 
+/* 4 buckets. Everything 90 days and older is "Bad Credit". */
 const BUCKETS = [
-  { key: "d0_30", label: "0 - 29 Days", min: 0, max: 29, rgb: "34,170,110" },
-  { key: "d31_60", label: "30 - 59 Days", min: 30, max: 59, rgb: "190,170,20" },
-  { key: "d61_90", label: "60 - 89 Days", min: 60, max: 89, rgb: "235,150,20" },
-  { key: "d91_120", label: "90 - 119 Days", min: 90, max: 119, rgb: "225,95,40" },
-  { key: "d120p", label: "120 Days & Above (Bad Credit)", min: 120, max: Infinity, rgb: "200,35,60" },
+  { key: "d0_30", label: "0 - 29 Days", short: "0 - 29 Days", min: 0, max: 29, rgb: "34,170,110" },
+  { key: "d31_60", label: "30 - 59 Days", short: "30 - 59 Days", min: 30, max: 59, rgb: "190,170,20" },
+  { key: "d61_90", label: "60 - 89 Days", short: "60 - 89 Days", min: 60, max: 89, rgb: "235,150,20" },
+  { key: "d90p", label: "Bad Credit (90 Days & Above)", short: "Bad Credit", min: 90, max: Infinity, rgb: "200,35,60" },
 ];
+
+const STAT_ICONS = {
+  d0_30: "fa-circle-check",
+  d31_60: "fa-clock",
+  d61_90: "fa-hourglass-half",
+  d90p: "fa-triangle-exclamation",
+};
+
+const STAT_LABELS = {
+  d0_30: "Current (0 - 29 days)",
+  d31_60: "30 - 59 Days",
+  d61_90: "60 - 89 Days",
+  d90p: "Bad Credit (90+ days)",
+};
 
 /* ==================================================================
    DATA SOURCES (real data, nothing hard-coded)
@@ -80,7 +96,8 @@ const invoiceNoOf = (inv) =>
 const invoiceDateOf = (inv) =>
   pick(inv, ["invoiceDate", "invoice_date", "date", "issueDate", "issuedAt", "createdAt", "created_at"]);
 
-const dueDateOf = (inv) => pick(inv, ["dueDate", "due_date", "paymentDue"]) || invoiceDateOf(inv);
+const rawDueDateOf = (inv) => pick(inv, ["dueDate", "due_date", "paymentDue"]);
+const dueDateOf = (inv) => rawDueDateOf(inv) || invoiceDateOf(inv);
 
 const balanceOf = (inv) => {
   const direct = pick(inv, ["balance", "balanceDue", "balance_due", "outstanding", "amountDue", "amount_due"]);
@@ -104,6 +121,24 @@ const daysOld = (date) => {
   return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
 };
 
+/* "3 Nov 2026" - or the raw text if it is not a real date, "-" if empty */
+const fmtDate = (v) => {
+  if (v === undefined || v === null || v === "") return "-";
+  const d = new Date(v);
+  return isNaN(d)
+    ? String(v)
+    : d.toLocaleDateString(LOCALE, { day: "numeric", month: "short", year: "numeric" });
+};
+
+/* what is wrong with the date the ageing is counted from (empty text = date is fine) */
+const dateIssueOf = (basis) => {
+  if (basis === undefined || basis === null || basis === "") return "No date - counted as 0 days";
+  const d = new Date(basis);
+  if (isNaN(d)) return "Invalid date - counted as 0 days";
+  if (d.getTime() > Date.now() + 86400000) return "Date is in the future - counted as 0 days";
+  return "";
+};
+
 const money = (n) =>
   CURRENCY +
   Number(n || 0).toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -111,17 +146,16 @@ const money = (n) =>
 const initials = (name) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 
+/* Bad Credit = any money 90+ days old.  Watch = money 30 - 89 days old.  Good = only 0 - 29 days. */
 const riskOf = (r) => {
-  if (r.d120p > 0) return { id: "critical", label: "Bad Credit" };
-  if (r.d91_120 > 0) return { id: "high", label: "High risk" };
+  if (r.d90p > 0) return { id: "critical", label: "Bad Credit" };
   if (r.d61_90 > 0 || r.d31_60 > 0) return { id: "watch", label: "Watch" };
   return { id: "good", label: "Good" };
 };
 
 const FILTERS = [
   { id: "all", label: "All clients" },
-  { id: "critical", label: "Bad Credit (120+)" },
-  { id: "high", label: "High risk" },
+  { id: "critical", label: "Bad Credit (90+)" },
   { id: "watch", label: "Watch" },
   { id: "good", label: "Good" },
 ];
@@ -137,6 +171,7 @@ export default function CreditAgingReportPage() {
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState({ key: "total", dir: "desc" });
   const [open, setOpen] = useState(() => new Set());
+  const [showDates, setShowDates] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -170,7 +205,7 @@ export default function CreditAgingReportPage() {
       const name = clientOf(inv);
 
       if (!map[name]) {
-        map[name] = { name, total: 0, d0_30: 0, d31_60: 0, d61_90: 0, d91_120: 0, d120p: 0, list: [] };
+        map[name] = { name, total: 0, d0_30: 0, d31_60: 0, d61_90: 0, d90p: 0, list: [] };
       }
       map[name][bucket.key] += bal;
       map[name].total += bal;
@@ -178,10 +213,36 @@ export default function CreditAgingReportPage() {
     });
     return Object.values(map).map((r) => ({
       ...r,
+      current: r.d0_30,                          // CURRENT = 0 - 29 days (not overdue yet)
+      due: r.d31_60 + r.d61_90 + r.d90p,         // DUE = 30 days and above (overdue)
       risk: riskOf(r),
       list: r.list.sort((a, b) => b.age - a.age),
     }));
   }, [visible]);
+
+  /* ---- date check: EVERY unpaid invoice with its dates, age, bucket and any date problem ---- */
+  const dateRows = useMemo(() => {
+    const out = [];
+    visible.forEach((inv) => {
+      if (!isCounted(inv)) return;
+      const bal = balanceOf(inv);
+      if (bal <= 0) return;
+      const basis = AGE_FROM === "dueDate" ? dueDateOf(inv) : invoiceDateOf(inv);
+      const age = daysOld(basis);
+      out.push({
+        no: invoiceNoOf(inv),
+        client: clientOf(inv),
+        invoiceDate: invoiceDateOf(inv),
+        dueDate: rawDueDateOf(inv),
+        age,
+        bal,
+        bucket: BUCKETS.find((b) => age >= b.min && age <= b.max),
+        issue: dateIssueOf(basis),
+      });
+    });
+    return out.sort((a, b) => b.age - a.age);
+  }, [visible]);
+  const dateIssues = dateRows.filter((r) => r.issue).length;
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -198,7 +259,7 @@ export default function CreditAgingReportPage() {
   }, [allRows, search, filter, sort]);
 
   const totals = useMemo(() => {
-    const t = { total: 0, d0_30: 0, d31_60: 0, d61_90: 0, d91_120: 0, d120p: 0 };
+    const t = { total: 0, current: 0, due: 0, d0_30: 0, d31_60: 0, d61_90: 0, d90p: 0 };
     rows.forEach((r) => Object.keys(t).forEach((k) => (t[k] += r[k])));
     return t;
   }, [rows]);
@@ -209,8 +270,33 @@ export default function CreditAgingReportPage() {
     return m;
   }, [rows]);
 
-  const overdue90 = totals.d91_120 + totals.d120p; // 90 days & above
   const pct = (v) => (totals.total ? (v / totals.total) * 100 : 0);
+
+  /* number of clients that have money in a given bucket */
+  const clientsIn = (key) => allRows.filter((r) => r[key] > 0).length;
+
+  /* summary cards: Total + all buckets */
+  const stats = [
+    {
+      key: "total",
+      label: "Total Outstanding",
+      value: totals.total,
+      sub: `${rows.length} client${rows.length === 1 ? "" : "s"} with dues`,
+      icon: "fa-sterling-sign",
+      rgb: "155,28,58",
+      share: totals.total ? 100 : 0,
+      main: true,
+    },
+    ...BUCKETS.map((b) => ({
+      key: b.key,
+      label: STAT_LABELS[b.key],
+      value: totals[b.key],
+      sub: `${pct(totals[b.key]).toFixed(1)}% · ${clientsIn(b.key)} client(s)`,
+      icon: STAT_ICONS[b.key],
+      rgb: b.rgb,
+      share: pct(totals[b.key]),
+    })),
+  ];
 
   const toggleSort = (key) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
@@ -224,11 +310,13 @@ export default function CreditAgingReportPage() {
     });
 
   const exportCsv = () => {
-    const head = ["S.NO", "NAME", "TOTAL", ...BUCKETS.map((b) => b.label), "RISK"];
+    const head = ["S.NO", "NAME", "TOTAL", "CURRENT", "DUE", ...BUCKETS.map((b) => b.label), "RISK"];
     const lines = rows.map((r, i) => [
       i + 1,
       `"${r.name.replace(/"/g, '""')}"`,
       r.total.toFixed(2),
+      r.current.toFixed(2),
+      r.due.toFixed(2),
       ...BUCKETS.map((b) => r[b.key].toFixed(2)),
       r.risk.label,
     ]);
@@ -268,39 +356,40 @@ export default function CreditAgingReportPage() {
         </div>
       </div>
 
-      {/* ---------- summary strip ---------- */}
+      {/* ---------- summary strip: Total + all buckets ---------- */}
       <div className="car-strip">
-        <div className="car-stat">
-          <span className="car-stat-ico t-orange"><i className="fa-solid fa-sterling-sign" /></span>
-          <div>
-            <small>Total Outstanding</small>
-            <strong>{money(totals.total)}</strong>
-            <em>{rows.length} client{rows.length === 1 ? "" : "s"} with dues</em>
+        {stats.map((s, idx) => (
+          <div key={s.key} className={"car-stat" + (s.main ? " main" : "")} style={{ "--c": s.rgb, "--i": idx }}>
+            <span className="car-stat-ico"><i className={"fa-solid " + s.icon} /></span>
+            <div className="car-stat-body">
+              <small>{s.label}</small>
+              <strong>{money(s.value)}</strong>
+              <em>{s.sub}</em>
+            </div>
+            <div className="car-stat-meter"><i style={{ width: s.share + "%" }} /></div>
           </div>
-        </div>
-        <div className="car-stat">
-          <span className="car-stat-ico t-green"><i className="fa-solid fa-circle-check" /></span>
-          <div>
+        ))}
+      </div>
+
+      {/* ---------- CURRENT and DUE ---------- */}
+      <div className="car-strip two">
+        <div className="car-stat" style={{ "--c": "34,170,110", "--i": 0 }}>
+          <span className="car-stat-ico"><i className="fa-solid fa-circle-check" /></span>
+          <div className="car-stat-body">
             <small>Current (0 - 29 days)</small>
-            <strong>{money(totals.d0_30)}</strong>
-            <em>{pct(totals.d0_30).toFixed(1)}% of outstanding</em>
+            <strong>{money(totals.current)}</strong>
+            <em>{pct(totals.current).toFixed(1)}% · {clientsIn("d0_30")} client(s) · not overdue</em>
           </div>
+          <div className="car-stat-meter"><i style={{ width: pct(totals.current) + "%" }} /></div>
         </div>
-        <div className="car-stat">
-          <span className="car-stat-ico t-amber"><i className="fa-solid fa-clock" /></span>
-          <div>
-            <small>90 Days &amp; Above</small>
-            <strong>{money(overdue90)}</strong>
-            <em>{pct(overdue90).toFixed(1)}% of outstanding</em>
+        <div className="car-stat" style={{ "--c": "225,95,40", "--i": 1 }}>
+          <span className="car-stat-ico"><i className="fa-solid fa-file-circle-exclamation" /></span>
+          <div className="car-stat-body">
+            <small>Due (30 days & above)</small>
+            <strong>{money(totals.due)}</strong>
+            <em>{pct(totals.due).toFixed(1)}% · {allRows.filter((r) => r.due > 0).length} client(s) · overdue</em>
           </div>
-        </div>
-        <div className="car-stat">
-          <span className="car-stat-ico t-red"><i className="fa-solid fa-triangle-exclamation" /></span>
-          <div>
-            <small>Bad Credit (120 days &amp; above)</small>
-            <strong>{money(totals.d120p)}</strong>
-            <em>{allRows.filter((r) => r.d120p > 0).length} client(s) affected</em>
-          </div>
+          <div className="car-stat-meter"><i style={{ width: pct(totals.due) + "%" }} /></div>
         </div>
       </div>
 
@@ -349,7 +438,73 @@ export default function CreditAgingReportPage() {
             </button>
           ))}
         </div>
+        <div className="car-chips">
+          <button className={showDates ? "on" : ""} onClick={() => setShowDates((v) => !v)} aria-pressed={showDates}>
+            <i className="fa-solid fa-calendar-check" /> Check all dates
+            <em>{dateRows.length}</em>
+          </button>
+        </div>
       </div>
+
+      {/* ---------- DATE CHECK: every unpaid invoice with its dates ---------- */}
+      {showDates && (
+        <div className="car-card car-table-wrap">
+          <div style={{ padding: "14px 16px 4px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+            <b style={{ fontSize: 15 }}><i className="fa-solid fa-calendar-check" /> Date check - all unpaid invoices</b>
+            <span
+              style={{
+                padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800,
+                color: dateIssues ? "#b91c1c" : "#15803d",
+                background: dateIssues ? "rgba(220,38,38,0.12)" : "rgba(34,197,94,0.15)",
+              }}
+            >
+              {dateIssues ? `${dateIssues} invoice${dateIssues === 1 ? "" : "s"} with a date problem` : "All dates look fine"}
+            </span>
+            <small style={{ opacity: 0.7 }}>
+              Age counted from {AGE_FROM === "dueDate" ? "due date" : "invoice date"}, as of today ({fmtDate(new Date())}).
+            </small>
+          </div>
+          <table className="car-table">
+            <thead>
+              <tr>
+                <th style={{ width: 60 }}>S.NO</th>
+                <th>INVOICE</th>
+                <th>CLIENT</th>
+                <th>INVOICE DATE</th>
+                <th>DUE DATE</th>
+                <th className="num">DAYS OLD</th>
+                <th className="num">BALANCE</th>
+                <th>BUCKET</th>
+                <th>DATE CHECK</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dateRows.map((x, i) => (
+                <tr key={`${x.no}-${i}`} style={x.issue ? { background: "rgba(220,38,38,0.07)" } : undefined}>
+                  <td>{i + 1}</td>
+                  <td><b>{x.no}</b></td>
+                  <td>{x.client}</td>
+                  <td>{fmtDate(x.invoiceDate)}</td>
+                  <td>{fmtDate(x.dueDate)}</td>
+                  <td className="num">{x.age}</td>
+                  <td className="num">{money(x.bal)}</td>
+                  <td>
+                    <span className="car-pill" style={{ background: `rgba(${x.bucket.rgb},.18)`, color: `rgb(${x.bucket.rgb})` }}>
+                      {x.bucket.short}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12.5, fontWeight: 700, color: x.issue ? "#b91c1c" : "#15803d", whiteSpace: "nowrap" }}>
+                    {x.issue ? <><i className="fa-solid fa-triangle-exclamation" /> {x.issue}</> : <><i className="fa-solid fa-check" /> OK</>}
+                  </td>
+                </tr>
+              ))}
+              {dateRows.length === 0 && (
+                <tr><td colSpan={9} className="car-empty">{loading ? "Loading invoices..." : "No unpaid invoices to check."}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ---------- table ---------- */}
       <div className="car-card car-table-wrap">
@@ -359,10 +514,12 @@ export default function CreditAgingReportPage() {
               <th style={{ width: 60 }}>S.NO</th>
               <th onClick={() => toggleSort("name")}>NAME{arrow("name")}</th>
               <th className="num" onClick={() => toggleSort("total")}>TOTAL{arrow("total")}</th>
+              <th className="num" onClick={() => toggleSort("current")}>CURRENT{arrow("current")}</th>
+              <th className="num" onClick={() => toggleSort("due")}>DUE{arrow("due")}</th>
               {BUCKETS.map((b) => (
-                <th key={b.key} className="num" onClick={() => toggleSort(b.key)}>
+                <th key={b.key} className="num" onClick={() => toggleSort(b.key)} title={b.label}>
                   <i className="car-dot" style={{ background: `rgb(${b.rgb})` }} />
-                  {b.label.toUpperCase()}
+                  {b.short.toUpperCase()}
                   {arrow(b.key)}
                 </th>
               ))}
@@ -393,6 +550,8 @@ export default function CreditAgingReportPage() {
                       </div>
                     </td>
                     <td className="num strong">{money(r.total)}</td>
+                    <td className={"num" + (r.current ? "" : " zero")} style={{ color: r.current ? "rgb(34,170,110)" : undefined, fontWeight: 700 }}>{money(r.current)}</td>
+                    <td className={"num" + (r.due ? "" : " zero")} style={{ color: r.due ? "rgb(225,95,40)" : undefined, fontWeight: 700 }}>{money(r.due)}</td>
                     {BUCKETS.map((b) => {
                       const v = r[b.key];
                       const a = colMax[b.key] ? 0.1 + 0.28 * (v / colMax[b.key]) : 0;
@@ -414,7 +573,7 @@ export default function CreditAgingReportPage() {
                   {isOpen && (
                     <tr className="car-detail">
                       <td />
-                      <td colSpan={BUCKETS.length + 3}>
+                      <td colSpan={BUCKETS.length + 5}>
                         <table className="car-inner">
                           <thead>
                             <tr>
@@ -431,12 +590,12 @@ export default function CreditAgingReportPage() {
                               return (
                                 <tr key={k}>
                                   <td>{x.no}</td>
-                                  <td>{x.date ? new Date(x.date).toLocaleDateString(LOCALE) : "-"}</td>
+                                  <td>{fmtDate(x.date)}</td>
                                   <td className="num">{x.age}</td>
                                   <td className="num">{money(x.bal)}</td>
                                   <td>
                                     <span className="car-pill" style={{ background: `rgba(${b.rgb},.18)`, color: `rgb(${b.rgb})` }}>
-                                      {b.label}
+                                      {b.short}
                                     </span>
                                   </td>
                                 </tr>
@@ -453,7 +612,7 @@ export default function CreditAgingReportPage() {
 
             {(loading || error || rows.length === 0) && (
               <tr>
-                <td colSpan={BUCKETS.length + 4} className="car-empty">
+                <td colSpan={BUCKETS.length + 6} className="car-empty">
                   {loading ? (
                     "Loading invoices..."
                   ) : error ? (
@@ -477,6 +636,8 @@ export default function CreditAgingReportPage() {
               <tr>
                 <td colSpan={2}>GRAND TOTAL</td>
                 <td className="num">{money(totals.total)}</td>
+                <td className="num">{money(totals.current)}</td>
+                <td className="num">{money(totals.due)}</td>
                 {BUCKETS.map((b) => (
                   <td key={b.key} className="num">{money(totals[b.key])}</td>
                 ))}
@@ -490,6 +651,7 @@ export default function CreditAgingReportPage() {
       <p className="car-foot">
         {visible.length} invoice{visible.length === 1 ? "" : "s"} read · ageing counted from{" "}
         {AGE_FROM === "dueDate" ? "due date" : "invoice date"} · only unpaid balances are counted (paid, cancelled, draft and void are skipped).
+        {dateIssues > 0 && ` ${dateIssues} invoice${dateIssues === 1 ? " has" : "s have"} a missing or invalid date (see Check all dates).`}
       </p>
     </div>
   );

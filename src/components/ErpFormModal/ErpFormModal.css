@@ -239,3 +239,20 @@
   .erp-fm-primary,.erp-fm-close,.erp-fm-chip,.erp-fm-progress span,.erp-fm-body,
   .erp-fm-control input,.erp-fm-control select,.erp-fm-control textarea{transition:none;scroll-behavior:auto}
 }
+/* multiple numbers field */
+.erp-fm-multi { display: grid; gap: 8px; }
+.erp-fm-multi-row { display: flex; align-items: center; gap: 8px; }
+.erp-fm-multi-row .erp-fm-control { flex: 1; min-width: 0; }
+.erp-fm-multi-del {
+  width: 38px; height: 38px; flex: none; display: grid; place-items: center; cursor: pointer;
+  border-radius: 10px; border: 1px solid rgba(127, 127, 127, .35); background: transparent; color: inherit; opacity: .75;
+  transition: background .15s, color .15s, border-color .15s, opacity .15s;
+}
+.erp-fm-multi-del:hover { background: rgba(220, 38, 38, .1); color: #dc2626; border-color: #dc2626; opacity: 1; }
+.erp-fm-add {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700;
+  border: 1.5px dashed #25d366; background: rgba(37, 211, 102, .08); color: #128c4a;
+  transition: background .15s, transform .15s;
+}
+.erp-fm-add:hover { background: rgba(37, 211, 102, .18); transform: translateY(-1px); }

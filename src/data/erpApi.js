@@ -164,3 +164,41 @@ export const raiseCreditNote = async ({ customer, invoice = "", amount, ref = ""
   }
   return created; // { ok: true, data: { number, ... } }
 };
+
+/* Record a customer payment against an invoice.
+   It is saved in "payments" (Completed) and that invoice's balance is reduced.
+   Invoice status becomes "Paid" when nothing is left, otherwise "Partially Paid". */
+export const recordPayment = async ({ customer, name, invoice, amount, method = "", date = "", reference = "", status = "Completed" }) => {
+  const amt = Number(amount);
+  const cust = customer || name;
+  if (isBlank(cust)) throw new Error("Choose a customer.");
+  if (isBlank(invoice)) throw new Error("Choose an invoice.");
+  if (!(amt > 0)) throw new Error("Enter an amount greater than zero.");
+
+  const invoices = await getErpRecords("invoices");
+  const inv = invoices.find((r) => String(r.number || r.invoiceNumber) === String(invoice));
+  if (!inv) throw new Error(`Invoice ${invoice} not found.`);
+
+  const bal = isBlank(inv.balance) ? Number(inv.amount) || 0 : Number(inv.balance);
+  if (amt > bal + 0.005) throw new Error(`Amount is more than the invoice balance (${bal.toFixed(2)}).`);
+
+  // next number: PAY-0001, PAY-0002 ...
+  const existing = await getErpRecords("payments");
+  const last = existing.reduce((max, r) => {
+    const m = /^PAY-(\d+)$/.exec(String(r.number || ""));
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  const number = `PAY-${String(last + 1).padStart(4, "0")}`;
+
+  const created = await createErpRecord("payments", {
+    number, customer: cust, customerName: cust, name: cust, invoice,
+    amount: amt, method, reference, status,
+    date: date || new Date().toISOString().slice(0, 10),
+  });
+
+  // reduce the invoice balance and update its status
+  const newBal = Math.max(0, Math.round((bal - amt) * 100) / 100);
+  await updateErpRecord("invoices", inv.id, { balance: newBal, status: newBal <= 0 ? "Paid" : "Partially Paid" });
+
+  return created; // { ok: true, data: { number, ... } }
+};

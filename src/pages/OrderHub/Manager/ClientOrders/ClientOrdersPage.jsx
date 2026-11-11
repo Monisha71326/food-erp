@@ -5,6 +5,7 @@ import TableLink from "@/components/TableLink/TableLink.jsx";
 import OrderDetailPage from "@/components/OrderDetailPage/OrderDetailPage.jsx";
 import { dateColumn } from "@/components/DataTable/columnHelpers.jsx";
 import { HubStatus, ViewingAs } from "@/components/HubUI/HubUI.jsx";
+import VisitBadge from "@/components/VisitBadge/VisitBadge.jsx";
 import useInvoiceDateFilter from "@/components/InvoiceDateFilter/InvoiceDateFilter.jsx";
 import { useHub, client, managerOrders, orderTotal, gbp } from "@/data/orderHubStore.js";
 import "./ClientOrdersPage.css";
@@ -46,6 +47,7 @@ export default function ClientOrdersPage() {
     dateColumn("date", "Date"),
     { key: "items", label: "Items", render: (r) => r.lines.length },
     { key: "total", label: "Total", align: "right", sortable: true, sortValue: orderTotal, render: (r) => gbp(orderTotal(r)) },
+    { key: "visitType", label: "Visit", sortable: true, sortValue: (r) => String(r.visitType || "").toLowerCase(), render: (r) => <VisitBadge order={r} /> },
     { key: "status", label: "Status", sortable: true, render: (r) => <HubStatus status={r.status} /> },
   ];
 

@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import "../InsightCharts/InsightCharts.css"; // shared .ic-* card styles + keyframes
 import "./MoreCharts.css";
 
+/* ---------- show / hide switches ----------
+   false = hidden (code is kept), true = visible */
+const SHOW = {
+  cashFlow: false,   // Cash Flow
+  busyHours: false,  // Busy Hours
+};
+
 /* ---------- helpers ---------- */
 const gbp = (v) => (v >= 1000 ? `£${(v / 1000).toFixed(1)}k` : `£${Math.round(v)}`);
 const jitter = (str) => { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 0.9 + (h % 21) / 100; };
@@ -255,19 +262,30 @@ function Heatmap({ k }) {
   );
 }
 
-/* ---------- export: two grid rows ---------- */
+/* ---------- export ---------- */
 export default function MoreCharts({ k = 1 }) {
+  /* both hidden -> the 3 remaining cards share one full row (no empty gaps) */
+  if (!SHOW.cashFlow && !SHOW.busyHours) {
+    return (
+      <div className="grid more-grid-b">
+        <Ageing k={k} />
+        <OrderStatus k={k} />
+        <CustomerGrowth k={k} />
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid more-grid-a">
-        <CashFlow k={k} />
+        {SHOW.cashFlow && <CashFlow k={k} />}
         <Ageing k={k} />
       </div>
       <div className="grid more-grid-b">
         <OrderStatus k={k} />
         <CustomerGrowth k={k} />
-        <Heatmap k={k} />
+        {SHOW.busyHours && <Heatmap k={k} />}
       </div>
     </>
   );
-}
+} 

@@ -1,10 +1,72 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader/PageHeader.jsx";
 import DataTable from "@/components/DataTable/DataTable.jsx";
 import ProductImageInput from "@/components/ProductImageInput.jsx";
 import { HubCard, Field, HubButton, HubNotice } from "@/components/HubUI/HubUI.jsx";
 import { useHub, saveStandardPrice, saveOverride, addProduct, updateProduct, gbp } from "@/data/orderHubStore.js";
 import "./ProductsPricingPage.css";
+
+/* ---------- CSV helpers (no extra library needed) ---------- */
+const CSV_HEADERS = ["Item code", "Description", "Category", "Cost price", "Standard price"];
+
+const csvEscape = (v) => {
+  const t = v === undefined || v === null ? "" : String(v);
+  return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
+
+const downloadCsv = (filename, rows) => {
+  const text = rows.map((r) => r.map(csvEscape).join(",")).join("\r\n");
+  // BOM so Excel opens it with correct characters
+  const blob = new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/* parses CSV text into an array of rows (handles quotes, commas inside quotes, CRLF) */
+const parseCsv = (input) => {
+  const text = input.replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else inQuotes = false;
+      } else cell += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); cell = "";
+      rows.push(row); row = [];
+    } else cell += ch;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter((r) => r.some((c) => String(c).trim() !== ""));
+};
+
+/* header name -> field key */
+const FIELD_MAP = {
+  "item code": "code", code: "code", item: "code", sku: "code",
+  description: "description", name: "description",
+  category: "category",
+  "cost price": "costPrice", cost: "costPrice", costprice: "costPrice",
+  "standard price": "standardPrice", price: "standardPrice", standardprice: "standardPrice",
+};
+const normHeader = (h) => String(h || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+const toNumber = (v) => {
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, ""));
+  return Number.isNaN(n) ? null : n;
+};
 
 function PriceCell({ product }) {
   const [val, setVal] = useState(String(product.standardPrice));
@@ -42,6 +104,11 @@ export default function ProductsPricingPage() {
   const [busy, setBusy] = useState(false);
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  /* import / export */
+  const fileRef = useRef(null);
+  const [importing, setImporting] = useState(false);
+  const [ioMsg, setIoMsg] = useState(null); // { ok, text }
+
   const submitProduct = async () => {
     setBusy(true);
     const r = await addProduct({
@@ -55,6 +122,89 @@ export default function ProductsPricingPage() {
     setBusy(false);
     setAddMsg({ ok: r.ok, text: r.msg });
     if (r.ok) setForm(EMPTY);
+  };
+
+  /* ---------- EXPORT: all products -> CSV ---------- */
+  const exportProducts = () => {
+    if (!s.products.length) { setIoMsg({ ok: false, text: "No products to export." }); return; }
+    const rows = [
+      CSV_HEADERS,
+      ...s.products.map((p) => [p.code, p.description, p.category, p.costPrice, p.standardPrice]),
+    ];
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCsv(`products-${date}.csv`, rows);
+    setIoMsg({ ok: true, text: `Exported ${s.products.length} products.` });
+  };
+
+  /* ---------- TEMPLATE: empty CSV with headers + one sample row ---------- */
+  const downloadTemplate = () => {
+    downloadCsv("products-template.csv", [CSV_HEADERS, ["RC-003", "Basmati Rice 10kg", "Grocery", "9.50", "12.99"]]);
+  };
+
+  /* ---------- IMPORT: CSV -> add new products / update existing ones ---------- */
+  const importProducts = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allows choosing the same file again
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name)) { setIoMsg({ ok: false, text: "Please choose a .csv file." }); return; }
+
+    setImporting(true);
+    setIoMsg(null);
+    try {
+      const rows = parseCsv(await file.text());
+      if (rows.length < 2) { setIoMsg({ ok: false, text: "The file has no data rows." }); return; }
+
+      const keys = rows[0].map((h) => FIELD_MAP[normHeader(h)] || null);
+      if (!keys.includes("code")) { setIoMsg({ ok: false, text: "Missing the 'Item code' column. Download the template to see the format." }); return; }
+
+      let added = 0, updated = 0;
+      const errors = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const rec = {};
+        keys.forEach((k, idx) => { if (k) rec[k] = String(rows[i][idx] ?? "").trim(); });
+        const line = i + 1;
+        if (!rec.code) { errors.push(`Row ${line}: item code is empty`); continue; }
+
+        const existing = s.products.find((p) => String(p.code).toLowerCase() === rec.code.toLowerCase());
+        const cost = toNumber(rec.costPrice);
+        const price = toNumber(rec.standardPrice);
+
+        if (existing) {
+          const changes = {};
+          if (rec.description) changes.description = rec.description;
+          if (rec.category) changes.category = rec.category;
+          if (cost !== null) changes.costPrice = cost;
+          if (Object.keys(changes).length) {
+            const r = await updateProduct(existing.code, changes);
+            if (r && r.ok === false) { errors.push(`Row ${line} (${rec.code}): ${r.msg || "could not update"}`); continue; }
+          }
+          if (price !== null) await saveStandardPrice(existing.code, price);
+          updated++;
+        } else {
+          const r = await addProduct({
+            code: rec.code,
+            description: rec.description || "",
+            category: rec.category || "",
+            costPrice: rec.costPrice ?? "",
+            standardPrice: rec.standardPrice ?? "",
+            image: "",
+          });
+          if (r && r.ok === false) errors.push(`Row ${line} (${rec.code}): ${r.msg || "could not add"}`);
+          else added++;
+        }
+      }
+
+      const summary = `Import finished: ${added} added, ${updated} updated${errors.length ? `, ${errors.length} failed` : ""}.`;
+      setIoMsg({
+        ok: errors.length === 0,
+        text: errors.length ? `${summary} ${errors.slice(0, 3).join(" | ")}${errors.length > 3 ? " ..." : ""}` : summary,
+      });
+    } catch (err) {
+      setIoMsg({ ok: false, text: "Could not read the file. Please check the CSV format." });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const prodCols = [
@@ -80,8 +230,17 @@ export default function ProductsPricingPage() {
 
   return (
     <div className="page-anim products-pricing-page">
-      <PageHeader eyebrow="SALES & MARKETING" title="Products & Pricing" subtitle="Standard pricing plus any client-specific overrides." icon="fa-tags"
-        actions={<HubButton variant="ghost" icon="fa-file-arrow-up" onClick={() => setMsg("In the full build this opens a CSV / Excel template upload that bulk-updates standard prices.")}>Bulk upload template</HubButton>} />
+      <PageHeader eyebrow="SALES & MARKETING" title="Products & Services" subtitle="Standard pricing plus any client-specific overrides." icon="fa-tags"
+        actions={
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <HubButton variant="ghost" icon="fa-file-arrow-down" onClick={downloadTemplate}>Template</HubButton>
+            <HubButton variant="ghost" icon="fa-file-import" onClick={() => fileRef.current?.click()} disabled={importing}>{importing ? "Importing..." : "Import"}</HubButton>
+            <HubButton icon="fa-file-export" onClick={exportProducts}>Export</HubButton>
+            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={importProducts} style={{ display: "none" }} />
+          </div>
+        } />
+
+      {ioMsg && <HubNotice tone={ioMsg.ok ? "green" : "red"}>{ioMsg.text}</HubNotice>}
 
       <HubCard title="Add new product">
         <div className="hub-form">

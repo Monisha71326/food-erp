@@ -6,9 +6,11 @@ import TableLink from "@/components/TableLink/TableLink.jsx";
 import StatusPill from "@/components/StatusPill/StatusPill.jsx";
 import OrderDetailsModal from "@/components/OrderDetailsModal/OrderDetailsModal.jsx";
 import ClientsMap from "@/components/ClientsMap/ClientsMap.jsx";
+import VisitBadge from "@/components/VisitBadge/VisitBadge.jsx";
 import ManagerCharts from "./ManagerCharts.jsx";
-import ManagerInsights from "./ManagerInsights.jsx"; // NEW
+import ManagerInsights from "./ManagerInsights.jsx";
 import StoreVisitCard from "./StoreVisitCard.jsx"; // check-in / check-out
+import VisitSplit from "./VisitSplit.jsx"; // ONSITE / OFFSITE summary card
 import { HubCard, HubStatus, HubButton, ViewingAs } from "@/components/HubUI/HubUI.jsx";
 import {
   useHub, manager, client, managerOrders, orderTotal, gbp, haversineKm,
@@ -18,11 +20,17 @@ import { fmtDate } from "@/utils/format.js";
 import { useShareLocation } from "@/utils/useShareLocation.js";
 import "./ManagerDashboardPage.css";
 
+/* true = show, false = hide */
+const SHOW_VISIT_LOG = false;
+
 const AT_STORE_KM = 0.3;
 const fmtDist = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
 const ring = (km) => (km < 1 ? { v: String(Math.round(km * 1000)), u: "m" } : { v: km.toFixed(1), u: "km" });
 const toneOf = (km) => (km <= 1 ? "green" : km <= 2 ? "orange" : "gray");
 const wordOf = (km) => (km <= AT_STORE_KM ? "At the store" : km <= 1 ? "Very close" : km <= 2 ? "Nearby" : "Far");
+
+/* visit type saved on each order by the area manager: "onsite" | "offsite" | "" (client portal / old orders) */
+const visitTypeOf = (o) => String(o.visitType || "").toLowerCase();
 
 /* Direction from the manager to a client: 0 = north, 90 = east (right on the map), 270 = west (left on the map) */
 const toRad = (d) => (d * Math.PI) / 180;
@@ -287,15 +295,32 @@ export default function ManagerDashboardPage() {
   const total = orders.reduce((sum, o) => sum + orderTotal(o), 0);
   const covered = m.clientIds.map((id) => client(id)).filter(Boolean);
 
+  /* Cash / Cheque this area manager has received (still holding).
+     Counted from payments saved with this manager's id (staff payments, see InvoiceDetail). */
+  const myPayments = (s.payments || []).filter((p) => p.managerId === m.id);
+  const sumBy = (method) =>
+    myPayments.filter((p) => p.method === method).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const holdingCash = sumBy("Cash");
+  const holdingCheque = sumBy("Cheque");
+
+  /* ONSITE / OFFSITE totals (only orders the area manager placed carry a visit type) */
+  const onsiteOrders = orders.filter((o) => visitTypeOf(o) === "onsite");
+  const offsiteOrders = orders.filter((o) => visitTypeOf(o) === "offsite");
+  const onsiteValue = onsiteOrders.reduce((sum, o) => sum + orderTotal(o), 0);
+  const offsiteValue = offsiteOrders.reduce((sum, o) => sum + orderTotal(o), 0);
+
   const items = [
     { label: "Visits This Week", value: m.visits.length, dec: 0, icon: "fa-location-dot", tone: "blue" },
     { label: "Orders", value: orders.length, dec: 0, icon: "fa-bag-shopping", tone: "purple" },
     { label: "Total Sale Value", value: total, dec: 2, money: true, icon: "fa-sterling-sign", tone: "green" },
     { label: "Clients Covered", value: m.clientIds.length, dec: 0, icon: "fa-store", tone: "orange" },
+    { label: "Holding Cash", value: holdingCash, dec: 2, money: true, icon: "fa-money-bill-wave", tone: "green" },
+    { label: "Holding Cheque", value: holdingCheque, dec: 2, money: true, icon: "fa-money-check", tone: "blue" },
   ];
   const columns = [
     { key: "id", label: "Order", sortable: true, render: (r) => <TableLink onClick={() => setSelected(r)}>{r.id}</TableLink> },
     { key: "client", label: "Client", render: (r) => client(r.clientId)?.name || "-" },
+    { key: "visitType", label: "Visit", sortable: true, sortValue: visitTypeOf, render: (r) => <VisitBadge order={r} /> },
     { key: "total", label: "Total", align: "right", sortable: true, sortValue: orderTotal, render: (r) => gbp(orderTotal(r)) },
     { key: "status", label: "Status", sortable: true, render: (r) => <HubStatus status={r.status} /> },
   ];
@@ -307,7 +332,15 @@ export default function ManagerDashboardPage() {
       <PageHeader eyebrow="AREA MANAGER" title={`${m.name}'s Dashboard`} subtitle={`Covering ${covered.map((c) => c.name).join(", ")}`} icon="fa-gauge-high" actions={<ViewingAs kind="manager" />} showPrint={false} />
 
       <LocationHero loc={loc} />
-      <SummaryStrip items={items} columns={4} />
+      <SummaryStrip items={items} columns={6} />
+
+      {/* ONSITE / OFFSITE summary */}
+      <VisitSplit
+        onsiteCount={onsiteOrders.length}
+        offsiteCount={offsiteOrders.length}
+        onsiteValue={onsiteValue}
+        offsiteValue={offsiteValue}
+      />
 
       {/* Enter store / Leave store (check-in / check-out) */}
       <StoreVisitCard m={m} loc={loc} />
@@ -324,7 +357,7 @@ export default function ManagerDashboardPage() {
         orderTotal={orderTotal}
       />
 
-      {/* NEW: highlight cards + more animated charts */}
+      {/* highlight cards + more animated charts */}
       <ManagerInsights
         orders={orders}
         visits={m.visits}
@@ -332,39 +365,41 @@ export default function ManagerDashboardPage() {
         orderTotal={orderTotal}
       />
 
-      <div className="hub-grid cols-2 md-grid">
-        <HubCard title="Visit Log">
-          {m.visits.length ? (
-            <ul className="md-visits">
-              {m.visits.map((v, i) => (
-                <li key={v.id || i}>
-                  {v.photoDataUrl ? <img src={v.photoDataUrl} alt="Store visit" /> : <span className="md-nophoto"><i className="fa-solid fa-store" /></span>}
-                  <div>
-                    <div className="hub-row">
-                      <b>{v.client}</b>
-                      {v.checkIn && !v.checkOut
-                        ? <StatusPill tone="orange" status="In store" />
-                        : <StatusPill tone={v.verified ? "green" : "gray"} status={v.verified ? "GPS verified" : "Unverified"} />}
+      <div className={`hub-grid md-grid${SHOW_VISIT_LOG ? " cols-2" : ""}`}>
+        {SHOW_VISIT_LOG && (
+          <HubCard title="Visit Log">
+            {m.visits.length ? (
+              <ul className="md-visits">
+                {m.visits.map((v, i) => (
+                  <li key={v.id || i}>
+                    {v.photoDataUrl ? <img src={v.photoDataUrl} alt="Store visit" /> : <span className="md-nophoto"><i className="fa-solid fa-store" /></span>}
+                    <div>
+                      <div className="hub-row">
+                        <b>{v.client}</b>
+                        {v.checkIn && !v.checkOut
+                          ? <StatusPill tone="orange" status="In store" />
+                          : <StatusPill tone={v.verified ? "green" : "gray"} status={v.verified ? "GPS verified" : "Unverified"} />}
+                      </div>
+                      {v.checkIn ? (
+                        <p className="muted hub-small">
+                          In: {fmtDateTime(v.checkIn)}
+                          {v.checkOut ? ` · Out: ${fmtClock(v.checkOut)} · ${fmtDuration(v.durationMin)}` : " · still in store"}
+                          {v.distanceKm != null ? ` · ${v.distanceKm.toFixed(2)}km from store` : ""}
+                        </p>
+                      ) : (
+                        <p className="muted hub-small">
+                          {fmtDate(v.date)}{v.time ? ` - ${v.time}` : ""}{v.distanceKm != null ? ` - ${v.distanceKm.toFixed(2)}km from store` : ""}
+                        </p>
+                      )}
+                      {v.note && <p className="muted hub-small">Check-in remark: {v.note}</p>}
+                      {v.checkOutRemark && <p className="muted hub-small">Check-out remark: {v.checkOutRemark}</p>}
                     </div>
-                    {v.checkIn ? (
-                      <p className="muted hub-small">
-                        In: {fmtDateTime(v.checkIn)}
-                        {v.checkOut ? ` · Out: ${fmtClock(v.checkOut)} · ${fmtDuration(v.durationMin)}` : " · still in store"}
-                        {v.distanceKm != null ? ` · ${v.distanceKm.toFixed(2)}km from store` : ""}
-                      </p>
-                    ) : (
-                      <p className="muted hub-small">
-                        {fmtDate(v.date)}{v.time ? ` - ${v.time}` : ""}{v.distanceKm != null ? ` - ${v.distanceKm.toFixed(2)}km from store` : ""}
-                      </p>
-                    )}
-                    {v.note && <p className="muted hub-small">Check-in remark: {v.note}</p>}
-                    {v.checkOutRemark && <p className="muted hub-small">Check-out remark: {v.checkOutRemark}</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="muted">No visits logged.</p>}
-        </HubCard>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="muted">No visits logged.</p>}
+          </HubCard>
+        )}
         <HubCard title="Recent Orders">
           <DataTable columns={columns} rows={orders.slice(0, 6)} entity="orders" searchPlaceholder="Search orders" />
         </HubCard>

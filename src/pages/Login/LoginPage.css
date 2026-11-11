@@ -148,3 +148,45 @@
 .rg-remember input { accent-color: var(--l-maroon); width: 16px; height: 16px; }
 
 .rg-success { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-radius: 12px; background: #e6f7ee; color: #0d7a3d; border: 1px solid #b8e6cb; font-size: 13.5px; font-weight: 600; animation: loginIn .3s both; }
+/* ---- Forgot password ---- */
+.rg-actions-left { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.rg-forgot, .rg-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--l-maroon);
+}
+.rg-forgot:hover, .rg-link:hover { text-decoration: underline; }
+.rg-link { color: var(--l-muted); }
+.rg-link:hover { color: var(--l-maroon); }
+
+/* ---- Forgot password: premium pill ---- */
+.rg-actions-left .rg-forgot {
+  position: relative; gap: 8px; padding: 6px 12px 6px 6px;
+  border-radius: 999px; border: 1.5px solid rgba(154, 15, 46, .18);
+  background: var(--l-maroon-soft); color: var(--l-maroon);
+  font-size: 13px; font-weight: 700; letter-spacing: .1px;
+  transition: transform .2s, box-shadow .2s, background .2s, border-color .2s, color .2s;
+}
+.rg-forgot-ico {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #b51b3d, var(--l-maroon-dark)); color: #fff;
+  box-shadow: 0 4px 10px rgba(154, 15, 46, .3); transition: transform .3s;
+}
+.rg-forgot-arrow { opacity: 0; transform: translateX(-6px); transition: opacity .2s, transform .2s; margin-left: -4px; }
+
+.rg-actions-left .rg-forgot:hover {
+  text-decoration: none; transform: translateY(-2px);
+  background: #fff; border-color: var(--l-maroon);
+  box-shadow: 0 8px 18px rgba(154, 15, 46, .16);
+}
+.rg-actions-left .rg-forgot:hover .rg-forgot-ico { transform: rotate(-18deg) scale(1.08); }
+.rg-actions-left .rg-forgot:hover .rg-forgot-arrow { opacity: 1; transform: none; }
+.rg-actions-left .rg-forgot:active { transform: translateY(0) scale(.98); }
+.rg-actions-left .rg-forgot:focus-visible { outline: 2px solid var(--l-maroon); outline-offset: 3px; }
+
+@media (max-width: 520px) {
+  .rg-actions-left { gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rg-forgot, .rg-forgot-ico, .rg-forgot-arrow { transition: none !important; }
+}

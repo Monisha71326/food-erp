@@ -7,7 +7,7 @@
  */
 import { navPrimary, navOrderHub, navOrderHubAll, navSecondary } from "./navigationData.js";
 
-/* Look up from navOrderHubAll so moved groups (Sales & Invoice, Sales & Marketing) are still found. */
+/* Look up from navOrderHubAll so moved groups (Sales & Invoice, Marketing) are still found. */
 const hub = (label) => navOrderHubAll.find((g) => g.label === label);
 const erpGroup = (label) => navPrimary.find((g) => g.label === label);
 
@@ -24,7 +24,7 @@ const contactSupport = hub("System & Admin").children.find((c) => c.label === "C
    "Finance & Credit" and "Supply Chain" are HIDDEN (see HIDDEN_HUB in navigationData.js). */
 const adminHubGroups = [
   salesInvoice,
-  hub("Sales & Marketing"),
+  hub("Marketing"), // Products & Services, Promotions, Sales Reporting (was "Sales & Marketing")
   // hub("Finance & Credit"), // HIDDEN
   // hub("Supply Chain"),     // HIDDEN
   hub("System & Admin"),
@@ -78,7 +78,7 @@ export const ROLES = {
     home: "Dashboard",
     subtitle: "Administrator",
     sections: [
-      // Dashboard ... Documents, Sales & Invoice, Sales & Marketing, Settings & Administration
+      // Dashboard ... Documents, Sales & Invoice, Marketing, Settings & Administration
       { items: navPrimary },
       // Client Portal, Area Manager, System & Admin (Finance & Credit / Supply Chain are hidden)
       { title: "Order Hub", items: navOrderHub },

@@ -1,6 +1,8 @@
 /* Insight charts (Dashboard). Cards use the global .grid + .dash-anim animations from DashboardPage.css */
 .insight-grid-a { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
-.insight-grid-b { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* 2 cards now (Orders by Weekday hidden): Target Achievement + Top Products share the full row.
+   If you show Orders by Weekday again, change this to repeat(3, minmax(0, 1fr)) */
+.insight-grid-b { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .dash-anim .insight-grid-a > :nth-child(1) { animation-delay: .70s; }
 .dash-anim .insight-grid-a > :nth-child(2) { animation-delay: .77s; }
@@ -16,13 +18,56 @@
 .ic-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
 .ic-head p { margin: 2px 0 0; font-size: 12px; opacity: .65; }
 .ic-good { color: #1f9d63; opacity: 1; }
+.ic-bad { color: #dc2626; opacity: 1; }
 .ic-legend { display: flex; gap: 12px; font-size: 12px; }
 .ic-legend span, .ic-tip span { display: inline-flex; align-items: center; gap: 6px; }
-.ic-legend i, .ic-tip i, .ic-donut-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.ic-legend i, .ic-tip i, .ic-donut-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
 
 .ic-svg { width: 100%; height: auto; display: block; overflow: visible; }
 .ic-axis { font-size: 10px; fill: var(--text); opacity: .55; }
 .ic-grid { stroke: var(--border); stroke-dasharray: 3 4; }
+
+/* ---- Revenue vs Expenses: filter dropdown ---- */
+.ic-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.ic-select { position: relative; }
+.ic-btn {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px;
+  background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  font: inherit; font-size: 12.5px; cursor: pointer; transition: border-color .2s, box-shadow .2s;
+}
+.ic-btn:hover, .ic-btn.open { border-color: var(--maroon); }
+.ic-btn.open { box-shadow: 0 0 0 3px rgba(154, 15, 46, 0.12); }
+.ic-btn svg { transition: transform .25s; }
+.ic-btn.open > svg:last-child { transform: rotate(180deg); }
+.ic-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 170px; padding: 5px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18); transform-origin: top right; animation: icMenu .18s ease-out;
+}
+.ic-opt {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  padding: 8px 10px; border: 0; background: none; border-radius: 7px; color: var(--text);
+  font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; transition: background .15s, padding-left .15s;
+}
+.ic-opt:hover { background: var(--bg); padding-left: 14px; }
+.ic-opt.active { color: var(--maroon); font-weight: 600; }
+
+/* ---- custom range (From / To dates) ---- */
+.ic-custom {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px;
+  padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  animation: icFade .3s ease both;
+}
+.ic-custom label { display: grid; gap: 4px; }
+.ic-custom label span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.ic-custom input {
+  height: 34px; padding: 0 8px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 12.5px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.ic-custom input:focus { outline: 0; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(154, 15, 46, 0.12); }
+.ic-custom em { font-style: normal; font-size: 11.5px; color: #dc2626; }
 
 /* ---- line chart ---- */
 .ic-chart-wrap { position: relative; }
@@ -34,6 +79,9 @@
 .ic-dot { stroke: var(--card); stroke-width: 2; }
 .ic-dot-rev { fill: var(--maroon); }
 .ic-dot-exp { fill: var(--navy); }
+.ic-dot-s { stroke: var(--card); stroke-width: 1.5; }
+.ic-dot-s.ic-dot-rev { fill: var(--maroon); }
+.ic-dot-s.ic-dot-exp { fill: var(--navy); }
 .ic-tip {
   position: absolute; top: 6px; transform: translateX(-50%); pointer-events: none;
   background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
@@ -41,7 +89,7 @@
   animation: icFade .15s ease-out;
 }
 
-/* ---- donut ---- */
+/* ---- donut (Sales / Gross Profit by Category) ---- */
 .ic-donut-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
 .ic-donut { width: 160px; height: 160px; flex: none; }
 .ic-donut-track { fill: none; stroke: var(--border); stroke-width: 14; opacity: .5; }
@@ -54,13 +102,40 @@
 .ic-donut-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; cursor: default; transition: background .15s; }
 .ic-donut-legend li.on, .ic-donut-legend li:hover { background: var(--bg); }
 .ic-donut-legend span { flex: 1; }
+/* gross profit margin label: keep "32% margin" on one line */
+.ic-donut-legend small { white-space: nowrap; font-size: 11px; opacity: .65; margin-left: 6px; }
+.ic-donut-legend b { white-space: nowrap; }
 
-/* ---- bars ---- */
+/* ---- Orders by Weekday (card hidden, styles kept) + shared mode switch ---- */
+.ic-mode { display: inline-flex; align-self: flex-start; padding: 3px; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
+.ic-mode button {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;
+  border: 0; border-radius: 7px; background: none; color: var(--text); opacity: .7;
+  font: inherit; font-size: 12px; cursor: pointer; transition: background .15s, color .15s, opacity .15s;
+}
+.ic-mode button:hover { opacity: 1; }
+.ic-mode button.active { background: var(--card); color: var(--maroon); font-weight: 600; opacity: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+
+.ic-filters { display: flex; flex-wrap: wrap; gap: 10px; }
+.ic-filters label { display: grid; gap: 4px; }
+.ic-filters label span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.ic-filters select {
+  height: 34px; padding: 0 8px; min-width: 76px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.ic-filters select:focus { outline: 0; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(154, 15, 46, 0.12); }
+.ic-wlegend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; }
+.ic-wlegend span { display: inline-flex; align-items: center; gap: 6px; }
+.ic-wlegend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 .ic-bar { fill: var(--navy); opacity: .85; transform-box: fill-box; transform-origin: bottom;
   animation: icGrow .8s cubic-bezier(.2,.7,.2,1) backwards; animation-delay: calc(var(--i) * .07s + .55s); transition: opacity .2s, filter .2s; }
-.ic-bar.best { fill: var(--maroon); opacity: 1; }
 .ic-bar:hover { opacity: 1; filter: brightness(1.15); }
-.ic-bar-val { font-size: 9.5px; font-weight: 600; fill: var(--text); animation: icFade .4s ease-out backwards; }
+.ic-pct { font-size: 8.5px; font-weight: 700; }
+.ic-pct.up { fill: #1f9d63; }
+.ic-pct.down { fill: #dc2626; }
+.ic-wnote { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; opacity: .65; }
 
 /* ---- gauge ---- */
 .ic-gauge-wrap { display: grid; gap: 8px; }
@@ -85,21 +160,19 @@
 @keyframes icWidth { from { width: 0; } }
 @keyframes icGauge { from { stroke-dashoffset: 100; } }
 @keyframes icDonut { from { stroke-dasharray: 0 var(--c); } }
+@keyframes icMenu { from { opacity: 0; transform: scale(.95) translateY(-4px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ic-line, .ic-area, .ic-seg, .ic-bar, .ic-bar-val, .ic-gauge-val, .ic-hbar-fill { animation: none; }
+  .ic-line, .ic-area, .ic-seg, .ic-bar, .ic-gauge-val, .ic-hbar-fill, .ic-menu, .ic-custom { animation: none; }
 }
 
 /* ---- responsive ---- */
-@media (max-width: 1280px) {
-  .insight-grid-b { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .insight-grid-b > :nth-child(3) { grid-column: span 2; }
-}
 @media (max-width: 1100px) {
   .insight-grid-a { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .insight-grid-b { grid-template-columns: minmax(0, 1fr); }
-  .insight-grid-b > :nth-child(3) { grid-column: auto; }
+}
+@media (max-width: 640px) {
   .ic-legend { display: none; }
 }

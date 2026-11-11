@@ -8,14 +8,27 @@ import PageHeader from "@/components/PageHeader/PageHeader.jsx";
 import StatCard from "./components/StatCard/StatCard.jsx";
 import SalesTrendChart from "./components/SalesTrendChart/SalesTrendChart.jsx";
 import ProductionOverview from "./components/ProductionOverview/ProductionOverview.jsx";
-import LowStockAlerts from "./components/LowStockAlerts/LowStockAlerts.jsx";
+// import LowStockAlerts from "./components/LowStockAlerts/LowStockAlerts.jsx"; // hidden (uncomment to show again)
 import RecentSalesOrders from "./components/RecentSalesOrders/RecentSalesOrders.jsx";
 import TodayActivity from "./components/TodayActivity/TodayActivity.jsx";
 import InsightCharts from "./components/InsightCharts/InsightCharts.jsx";
 import MoreCharts from "./components/MoreCharts/MoreCharts.jsx";
+import AreaBreakdown from "./components/AreaBreakdown/AreaBreakdown.jsx"; // NEW: area manager / office / area filters + tables
 import { topStats, secondaryStats } from "@/data/dashboardData.js";
 import { currentUser } from "@/data/authStore.js";
 import "./DashboardPage.css";
+
+/* Cards hidden from the dashboard (code/data kept in dashboardData.js).
+   To show one again, delete its id from the list.
+   top cards ids : sales, purchases, stock, batches = Production Batches
+   small cards ids: recv = Outstanding Receivables, bank = Bank Balance, low = Low Stock Items,
+                    orders = Open Sales Orders, deliv = Deliveries Today */
+const HIDDEN_TOP_CARDS = ["batches"];
+const HIDDEN_MINI_CARDS = ["recv", "bank", "low", "deliv"];
+
+/* true  = the remaining small card(s) join the KPI row (one clean row, no lonely second row)
+   false = small cards stay in their own second row */
+const MERGE_MINI_INTO_KPI = true;
 
 /* ---------- date range helpers ---------- */
 const PRESETS = [
@@ -181,6 +194,15 @@ function DateRangePicker({ range, onChange }) {
   );
 }
 
+/* look of the small cards when they use the big KPI card style (tone / colour / sparkline) */
+const MINI_LOOK = {
+  orders: { tone: "red", color: "#9a0f2e", spark: [6, 8, 7, 10, 9, 13, 12, 16] },
+  deliv: { tone: "blue", color: "#3b6fe0", spark: [4, 6, 5, 8, 7, 9, 12, 11] },
+  recv: { tone: "orange", color: "#f08a1c", spark: [10, 9, 12, 11, 8, 9, 7, 6] },
+  bank: { tone: "purple", color: "#7c3aed", spark: [8, 10, 9, 13, 12, 15, 14, 18] },
+  low: { tone: "red", color: "#9a0f2e", spark: [5, 6, 6, 7, 8, 7, 9, 8] },
+};
+
 /* ---------- page ---------- */
 /* onNavigate comes from App.jsx (<Page onNavigate={setActivePage} />) -> used by the "View All" links */
 export default function DashboardPage({ onNavigate }) {
@@ -194,8 +216,23 @@ export default function DashboardPage({ onNavigate }) {
 
   /* data for the chosen period: 1.0 = a 30-day period */
   const k = daysBetween(range.from, range.to) / 30;
-  const kpis = useMemo(() => topStats.map((s) => scaleStat(s, k)), [k]);
-  const minis = useMemo(() => secondaryStats.map((s) => scaleStat(s, k)), [k]);
+
+  const kpis = useMemo(
+    () => topStats.filter((s) => !HIDDEN_TOP_CARDS.includes(s.id)).map((s) => scaleStat(s, k)),
+    [k]
+  );
+  const minis = useMemo(
+    () => secondaryStats.filter((s) => !HIDDEN_MINI_CARDS.includes(s.id)).map((s) => scaleStat(s, k)),
+    [k]
+  );
+
+  /* cards shown in the first row */
+  const row1 = useMemo(
+    () => (MERGE_MINI_INTO_KPI ? [...kpis, ...minis.map((s) => ({ ...MINI_LOOK[s.id], ...s }))] : kpis),
+    [kpis, minis]
+  );
+  /* second row only when the small cards are NOT merged into row 1 */
+  const row2 = MERGE_MINI_INTO_KPI ? [] : minis;
 
   const refresh = () => {
     setSpinning(true);
@@ -225,15 +262,23 @@ export default function DashboardPage({ onNavigate }) {
       />
 
       <div className="dash-anim" key={bodyKey}>
-        {/* Row 1: four big KPI cards */}
-        <div className="grid kpi-grid">
-          {kpis.map((s) => <StatCard key={s.id} variant="kpi" {...s} />)}
-        </div>
+        {/* Row 1: KPI cards (Production Batches removed) */}
+        {row1.length > 0 && (
+          <div className="grid kpi-grid" style={{ "--kpi-n": row1.length }}>
+            {row1.map((s) => <StatCard key={s.id} variant="kpi" {...s} />)}
+          </div>
+        )}
 
-        {/* Row 2: five small cards */}
-        <div className="grid mini-grid">
-          {minis.map((s) => <StatCard key={s.id} variant="mini" {...s} />)}
-        </div>
+        {/* Row 2: small cards (only when not merged into row 1) */}
+        {row2.length > 0 && (
+          <div className={`grid mini-grid ${row2.length < 5 ? "mini-few" : ""}`} style={{ "--mini-n": row2.length }}>
+            {row2.map((s) =>
+              row2.length < 5
+                ? <StatCard key={s.id} variant="kpi" {...MINI_LOOK[s.id]} {...s} />
+                : <StatCard key={s.id} variant="mini" {...s} />
+            )}
+          </div>
+        )}
 
         {/* Row 3: charts */}
         <div className="grid chart-grid">
@@ -241,9 +286,9 @@ export default function DashboardPage({ onNavigate }) {
           <ProductionOverview range={range} />
         </div>
 
-        {/* Row 4: tables + activity */}
+        {/* Row 4: tables + activity (Low Stock Alerts hidden) */}
         <div className="grid bottom-grid">
-          <LowStockAlerts range={range} onNavigate={onNavigate} />
+          {/* <LowStockAlerts range={range} onNavigate={onNavigate} /> */}
           <RecentSalesOrders range={range} onNavigate={onNavigate} />
           <TodayActivity range={range} onNavigate={onNavigate} />
         </div>
@@ -253,6 +298,9 @@ export default function DashboardPage({ onNavigate }) {
 
         {/* Row 7 + 8: more animated charts */}
         <MoreCharts k={k} />
+
+        {/* Row 9: NEW - area manager / office / area filters, rep-wise breakdown, invoiced stores */}
+        <AreaBreakdown range={range} />
       </div>
     </div>
   );

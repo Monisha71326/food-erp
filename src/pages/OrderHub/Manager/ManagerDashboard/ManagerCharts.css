@@ -72,3 +72,43 @@
 
 @media (max-width: 1280px) { .mg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .mg-grid { grid-template-columns: minmax(0, 1fr); } }
+/* 3 charts = full width, equal columns */
+.manager-dashboard-page .mg-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* card kulla content stretch aaga */
+.manager-dashboard-page .mg-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sales by Client: bars card full height-ku evenly spread */
+.manager-dashboard-page .mg-hbars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 14px;
+}
+
+/* Donut + Gauge: center-ah vaikka */
+.manager-dashboard-page .mg-donut-row,
+.manager-dashboard-page .mg-gauge-wrap {
+  flex: 1;
+  justify-content: center;
+}
+
+@media (max-width: 1100px) {
+  .manager-dashboard-page .mg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 700px) {
+  .manager-dashboard-page .mg-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

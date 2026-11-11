@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import StatusPill from "@/components/StatusPill/StatusPill.jsx";
-import { useHub, setSession } from "@/data/orderHubStore.js";
+import { currentUser } from "@/data/authStore.js";
 import "./HubUI.css";
 
 /*
@@ -78,20 +78,24 @@ export function HubModal({ open, title, onClose, children }) {
   );
 }
 
-/* "Viewing as" selector for the Client Portal / Area Manager menus (there is no login inside the ERP) */
-export function ViewingAs({ kind }) {
-  const s = useHub();
-  if (s.session.locked) return null; // logged in as a specific client / manager
-  const isClient = kind === "client";
-  const list = isClient ? s.clients : s.areaManagers;
-  const value = isClient ? s.session.clientId : s.session.managerId;
+/* "Viewing as": shows whoever is signed in
+   erp / admin -> admin name, manager -> manager name, client -> client name */
+const ROLE_ICON = {
+  client: "fa-store",
+  manager: "fa-user-tie",
+  admin: "fa-user-shield",
+  erp: "fa-user-shield",
+};
+
+export function ViewingAs() {
+  const user = currentUser();
+  if (!user) return null;
+  const name = String(user.name || "").replace(/ \(.*\)$/, "").trim() || user.username;
   return (
-    <label className="hub-viewing">
-      <i className={`fa-solid ${isClient ? "fa-store" : "fa-user-tie"}`} aria-hidden="true" />
+    <div className="hub-viewing hub-viewing-static" title={user.role}>
+      <i className={`fa-solid ${ROLE_ICON[user.role] || "fa-user"}`} aria-hidden="true" />
       <span>Viewing as</span>
-      <select value={value} onChange={(e) => setSession(isClient ? { clientId: e.target.value } : { managerId: e.target.value })}>
-        {list.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-      </select>
-    </label>
+      <strong>{name}</strong>
+    </div>
   );
 }

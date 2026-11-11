@@ -11,7 +11,7 @@ import "./InvoicePrint.css";
    data = {
      number, order, customer, date, due, status,      // date / due already formatted as text
      amount, balance, paid?,                          // numbers
-     net?, vat?,                                      // numbers (optional)
+     net?, vat?, vatRate?,                            // numbers (vatRate = % shown next to the VAT amount)
      lines?: [{ desc, qty, price, total, vat? }],     // optional item lines (vat = VAT amount of that line)
      clientInfo?: { name, contact, email, address },  // optional: client details under "Bill to"
      areaManager?: string,                            // optional: area manager name
@@ -140,7 +140,12 @@ function TradeInvoice({ tpl, data }) {
         <div className="trd-totals">
           {data.net != null && <div><span>Total Net Amount</span><b>{num(data.net)}</b></div>}
           <div><span>Carriage Net</span><b>{num(data.carriage || 0)}</b></div>
-          {data.vat != null && <div><span>Total VAT Amount</span><b>{num(data.vat)}</b></div>}
+          {data.vat != null && (
+            <div>
+              <span>Total VAT Amount{data.vatRate != null ? ` (${data.vatRate}%)` : ""}</span>
+              <b>{num(data.vat)}</b>
+            </div>
+          )}
           <div><span>Invoice Total £</span><b>{num(amount)}</b></div>
           <div><span>Amount Paid £</span><b>{num(paid)}</b></div>
           <div className="trd-balance"><span>Balance Due £</span><b>{num(balance)}</b></div>
@@ -271,7 +276,12 @@ export function InvoiceDocument({ tpl: rawTpl, data, money }) {
         </div>
         <div className="ipr-totals">
           {data.net != null && <div><span>Net</span><b>{money(data.net)}</b></div>}
-          {data.vat != null && <div><span>VAT</span><b>{money(data.vat)}</b></div>}
+          {data.vat != null && (
+            <div>
+              <span>VAT{data.vatRate != null ? ` (${data.vatRate}%)` : ""}</span>
+              <b>{money(data.vat)}</b>
+            </div>
+          )}
           <div><span>Invoice total</span><b>{money(amount)}</b></div>
           <div><span>Paid</span><b>{money(paid)}</b></div>
           <div className="ipr-grand"><span>Balance due</span><b>{money(balance)}</b></div>

@@ -6,12 +6,54 @@ import TableLink from "@/components/TableLink/TableLink.jsx";
 import StatusPill from "@/components/StatusPill/StatusPill.jsx";
 import { CellIcon, dateColumn, textColumn, amountColumn } from "@/components/DataTable/columnHelpers.jsx";
 import usePrintInvoice from "@/components/InvoicePrint/usePrintInvoice.jsx";
-import { getErpRecords, createErpRecord, updateErpRecord, deleteErpRecord } from "@/data/erpApi.js";
+import ErpFormModal from "@/components/ErpFormModal/ErpFormModal.jsx";
+import { getErpRecords, createErpRecord, updateErpRecord, deleteErpRecord, ERP_ALIAS_GROUPS } from "@/data/erpApi.js";
 import { fmtDate } from "@/utils/format.js";
+import { vatSplit } from "@/utils/vat.js";
 import "./InvoicesPage.css";
+
+/* role of the logged-in user (reads the same storage the auth file uses) */
+const getRole = () => {
+  try {
+    const s = JSON.parse(sessionStorage.getItem("meg-session")) || JSON.parse(localStorage.getItem("meg-session"));
+    const list = JSON.parse(localStorage.getItem("meg-users")) || [];
+    return list.find((u) => u.username === s?.username)?.role || "";
+  } catch {
+    return "";
+  }
+};
+
+/* fields of the "Edit Invoice" popup (same popup as New Invoice) + customer details */
+const EDIT_FIELDS = [
+  { key: "customerName", label: "Customer Name", required: true, section: "Invoice details" },
+  { key: "invoiceNumber", label: "Invoice Number", required: true, section: "Invoice details" },
+  { key: "order", label: "Order Number", section: "Invoice details" },
+  { key: "date", label: "Invoice Date", type: "date", section: "Invoice details" },
+  { key: "dueDate", label: "Due Date", type: "date", section: "Invoice details" },
+  { key: "status", label: "Status", type: "select", options: ["Draft", "Sent", "Partially Paid", "Paid", "Overdue"], section: "Invoice details" },
+  { key: "amount", label: "Amount", type: "number", min: "0", section: "Invoice details" },
+  { key: "email", label: "Email Address", type: "email", required: true, placeholder: "name@company.com", section: "Customer details" },
+  { key: "phone", label: "Phone", type: "tel", required: true, section: "Customer details" },
+  { key: "address", label: "Address", type: "textarea", wide: true, required: true, section: "Customer details" },
+  { key: "pincode", label: "Pincode", required: true, section: "Customer details" },
+];
+const aliasSiblings = (key) => ERP_ALIAS_GROUPS.find((g) => g.includes(key)) || [key];
 
 const money = (n) => "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+/* balance due of an invoice. A new invoice saved without a balance has paid nothing yet, so balance = amount */
+const balanceOf = (row) => (row?.balance == null || row.balance === "" ? Number(row?.amount || 0) : Number(row.balance));
+
+/* ---------- SERVICE LEVEL % ----------
+   Formula: (Paid / Invoice amount) x 100
+   Change the formula here only if needed. */
+const serviceLevel = (row) => {
+  const amount = Number(row?.amount || 0);
+  if (amount <= 0) return 0;
+  const paid = Math.max(0, amount - balanceOf(row));
+  return Math.min(100, Math.round((paid / amount) * 100));
+};
+const slTone = (pct) => (pct >= 100 ? "green" : pct >= 50 ? "blue" : pct > 0 ? "orange" : "red");
 
 /* local-date "YYYY-MM-DD" (offset = days from today) */
 const todayISO = (offset = 0) => {
@@ -36,19 +78,18 @@ const nextPayNo = (rows) => {
 const statusKey = (row) => String(row?.status || "").toLowerCase();
 
 /* invoice still has money to collect (Sent / Overdue / Partially Paid) */
-const isOpen = (row) => !["paid", "draft", "void"].includes(statusKey(row)) && Number(row?.balance || 0) > 0;
+const isOpen = (row) => !["paid", "draft", "void"].includes(statusKey(row)) && balanceOf(row) > 0;
 
 /* a payment can be submitted only if the invoice is open AND no payment is waiting for Admin approval */
 const canTakePayment = (row) => isOpen(row) && !row?.pendingApproval;
 
-/* The stored status can be out of date (e.g. "Overdue" but the due date is still in the future),
-   so the label shown on screen is always worked out from balance + due date. */
+/* The stored status can be out of date, so the label shown on screen is always worked out from balance + due date. */
 const effectiveStatus = (row) => {
   const s = statusKey(row);
-  if (s === "paid" || Number(row?.balance || 0) <= 0) return "Paid";
-  if (row?.pendingApproval) return "Pending Approval"; // payment submitted, waiting for ERP Admin
   if (s === "draft") return "Draft";
   if (s === "void") return "Void";
+  if (s === "paid" || balanceOf(row) <= 0) return "Paid";
+  if (row?.pendingApproval) return "Pending Approval";
   if (row?.due && row.due < todayISO()) return "Overdue";
   if (s === "partially paid") return "Partially Paid";
   return "Sent";
@@ -57,7 +98,6 @@ const STATUS_TONE = {
   Paid: "green", Overdue: "red", "Partially Paid": "purple", Sent: "blue",
   Draft: "gray", Void: "gray", "Pending Approval": "orange",
 };
-/* used by the "Exclude paid" pill on the list */
 const isPaidRow = (row) => effectiveStatus(row) === "Paid";
 
 /* share status of an invoice */
@@ -72,17 +112,15 @@ const SHARE_META = {
 const buildShareText = (row) =>
   `Hi ${row.customer}, invoice ${row.number} for ${money(row.amount)}` +
   (row.due ? `, due on ${fmtDate(row.due)}` : "") +
-  `. Balance due: ${money(row.balance)}. Thank you!`;
-const SHARE_TONE = { Shared: "green", "Not Shared": "gray" };
+  `. Balance due: ${money(balanceOf(row))}. Thank you!`;
 const shareTitle = (row) => (row?.sharedOn ? `${row.sharedVia || "Shared"} · ${fmtDate(row.sharedOn)}` : "");
 
-/* ---------- summary cards, worked out from the real invoice rows ---------- */
+/* ---------- summary cards ---------- */
 const computeSummary = (rows) => {
   const today = todayISO();
   const in30 = todayISO(30);
-  /* uses isOpen (not canTakePayment) so invoices waiting for approval still count as receivables */
   const open = rows.filter(isOpen);
-  const total = (list) => list.reduce((s, r) => s + Number(r.balance || 0), 0);
+  const total = (list) => list.reduce((s, r) => s + balanceOf(r), 0);
 
   const paidRows = rows.filter((r) => r.paidOn && r.date);
   const avgDays = paidRows.length
@@ -98,24 +136,44 @@ const computeSummary = (rows) => {
   ];
 };
 
-/* data shown on the printed invoice (add `lines`, `net`, `vat` here when your rows have them) */
-const buildDocData = (row) => ({
-  number: row.number,
-  order: row.order,
-  customer: row.customer,
-  date: row.date ? fmtDate(row.date) : "-",
-  due: row.due ? fmtDate(row.due) : "-",
-  status: row.status,
-  amount: row.amount,
-  balance: row.balance,
-});
+/* data shown on the printed invoice (PDF). c = the customer record (so "Bill to" shows the latest details) */
+const buildDocData = (row, c) => {
+  const t = vatSplit(row);
+  return {
+    number: row.number,
+    order: row.order,
+    customer: row.customer,
+    date: row.date ? fmtDate(row.date) : "-",
+    due: row.due ? fmtDate(row.due) : "-",
+    status: row.status,
+    amount: row.amount,
+    balance: balanceOf(row),
+    net: t.net,
+    vat: t.vat,
+    vatRate: t.rate,
+    clientInfo: c
+      ? { name: c.name, contact: c.contact, email: c.email, phone: c.phone, address: c.address, pincode: c.pincode }
+      : undefined,
+    lines: [
+      {
+        desc: `Invoice ${row.number}${row.order ? ` (Order ${row.order})` : ""}`,
+        qty: 1,
+        price: t.net,
+        total: t.net,
+        vat: t.vat,
+      },
+    ],
+  };
+};
 
 /* everything the invoice page needs, worked out from one row */
 const invoiceView = (row) => {
   const amount = Number(row.amount || 0);
-  const balance = Number(row.balance || 0);
+  const tax = vatSplit(row);
+  const balance = balanceOf(row);
   const paid = Math.max(0, amount - balance);
   const pct = amount > 0 ? Math.min(100, Math.round((paid / amount) * 100)) : 0;
+  const sl = serviceLevel(row);
   const status = effectiveStatus(row);
   const isPaid = status === "Paid";
   const overdue = status === "Overdue";
@@ -132,29 +190,42 @@ const invoiceView = (row) => {
   else if (days === 0) { tone = "orange"; note = "Due today"; }
   else if (days != null) { tone = "blue"; note = `Due in ${days} day${days === 1 ? "" : "s"}`; }
 
-  return { amount, balance, paid, pct, isPaid, overdue, awaiting, tone, note, status, chip: STATUS_TONE[status] || "gray" };
+  return {
+    amount, balance, paid, pct, sl, slTone: slTone(sl), isPaid, overdue, awaiting, tone, note, status,
+    chip: STATUS_TONE[status] || "gray",
+    net: tax.net, vat: tax.vat, vatRate: tax.rate,
+  };
 };
 
 export default function InvoicesPage() {
-  const [selected, setSelected] = useState(null); // invoice shown on its own page
+  /* ---- who is logged in (only Admin / ERP Administrator can edit customer details) ---- */
+  const isAdmin = ["admin", "erp"].includes(getRole());
+
+  const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [printInvoice, printPortal] = usePrintInvoice(money); // hooks stay above early return
+  const [printInvoice, printPortal] = usePrintInvoice(money);
 
   const [summary, setSummary] = useState(() => computeSummary([]));
-  const [history, setHistory] = useState([]); // approved payments of the open invoice
+  const [history, setHistory] = useState([]);
   const [showPay, setShowPay] = useState(false);
   const [form, setForm] = useState({ amount: "", method: PAY_METHODS[0], reference: "", date: todayISO() });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState("");
-  const [flashType, setFlashType] = useState("ok"); // "ok" | "err"
-  const [customers, setCustomers] = useState([]); // for "Share invoices via" / "Send invoices to"
-  const [listKey, setListKey] = useState(0); // bump to reload the list after sharing / payment submit
-  const [shareRow, setShareRow] = useState(null); // invoice being shared (popup open when set)
+  const [flashType, setFlashType] = useState("ok");
+  const [customers, setCustomers] = useState([]);
+  const [listKey, setListKey] = useState(0);
+  const [shareRow, setShareRow] = useState(null);
   const [shareForm, setShareForm] = useState({ via: SHARE_VIA[0], to: "", msg: "" });
   const [shareErr, setShareErr] = useState("");
   const [sharing, setSharing] = useState(false);
-  const [shareDone, setShareDone] = useState(null); // channel name while the success screen shows
+  const [shareDone, setShareDone] = useState(null);
+
+  /* edit customer (admin only) */
+  const [showCust, setShowCust] = useState(false);
+  const [custForm, setCustForm] = useState({});
+  const [custErr, setCustErr] = useState("");
+  const [custBusy, setCustBusy] = useState(false);
 
   const notify = (msg, type = "ok") => {
     setFlashType(type);
@@ -162,12 +233,10 @@ export default function InvoicesPage() {
     setTimeout(() => setFlash(""), 5000);
   };
 
-  /* customers: needed to know how + where to share */
   useEffect(() => {
     getErpRecords("customers").then(setCustomers).catch(() => {});
   }, []);
 
-  /* summary cards: reload every time we come back to the list */
   useEffect(() => {
     if (selected) return;
     let live = true;
@@ -175,7 +244,6 @@ export default function InvoicesPage() {
     return () => { live = false; };
   }, [selected, listKey]);
 
-  /* payment history of the open invoice (only approved payments live in "payments-received") */
   const loadHistory = async (invoiceNumber) => {
     try {
       const all = await getErpRecords("payments-received");
@@ -191,7 +259,6 @@ export default function InvoicesPage() {
     return () => { live = false; };
   }, [selected?.number]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Esc closes the payment popup */
   useEffect(() => {
     if (!showPay) return;
     const onKey = (e) => e.key === "Escape" && !busy && setShowPay(false);
@@ -206,7 +273,23 @@ export default function InvoicesPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [shareRow, sharing]);
 
-  const printRow = (row) => printInvoice(buildDocData(row));
+  useEffect(() => {
+    if (!showCust) return;
+    const onKey = (e) => e.key === "Escape" && !custBusy && setShowCust(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showCust, custBusy]);
+
+  /* ---------- customer record of an invoice ---------- */
+  /* finds the customer record by name / company / customerName (case-insensitive) */
+  const custOf = (row, list = customers) => {
+    const norm = (v) => String(v || "").trim().toLowerCase();
+    const name = norm(row?.customer || row?.customerName);
+    if (!name) return undefined;
+    return list.find((c) => [c.name, c.company, c.customerName, c.displayName].some((v) => norm(v) === name));
+  };
+
+  const printRow = (row) => printInvoice(buildDocData(row, custOf(row)));
 
   const copyNumber = async (num) => {
     try {
@@ -218,13 +301,90 @@ export default function InvoicesPage() {
     }
   };
 
-  /* ---------- share invoice ---------- */
-  const custOf = (row) => {
-    const name = String(row?.customer || "").trim().toLowerCase();
-    return customers.find((c) => String(c.name || "").trim().toLowerCase() === name);
+  /* ---------- Edit invoice + customer details (ADMIN only) ---------- */
+  const openCust = (row) => {
+    if (!isAdmin) return;
+    const c = custOf(row) || {};
+    const rec = { ...row, email: c.email, phone: c.phone, address: c.address, pincode: c.pincode };
+    setCustForm(Object.fromEntries(EDIT_FIELDS.map((f) => {
+      const value = [f.key, ...aliasSiblings(f.key)].map((k) => rec[k]).find((v) => v !== undefined && v !== null && String(v).trim() !== "");
+      return [f.key, value ?? ""];
+    })));
+    setCustErr("");
+    setShowCust(true);
   };
 
-  /* best recipient for a channel: saved "Send invoices to", else the customer's email / phone */
+  const submitCust = async (e) => {
+    e.preventDefault();
+    if (!selected || custBusy || !isAdmin) return;
+    const f = Object.fromEntries(Object.entries(custForm).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v]));
+
+    /* blank customer fields would be re-filled with demo data by erpApi, so they are required */
+    if (!f.customerName) return setCustErr("Customer name is required.");
+    if (!f.invoiceNumber) return setCustErr("Invoice number is required.");
+    if (!f.email) return setCustErr("Email is required.");
+    if (!/^\S+@\S+\.\S+$/.test(f.email)) return setCustErr("Enter a valid email address.");
+    if (!f.phone) return setCustErr("Phone is required.");
+    if (!f.address) return setCustErr("Address is required.");
+    if (!f.pincode) return setCustErr("Pincode is required.");
+
+    const oldName = selected.customer;
+    const oldNumber = selected.number;
+
+    /* invoice data (balance moves with the amount, same rule as the New / Edit Invoice form) */
+    const amount = Number(f.amount || 0);
+    const data = {
+      customerName: f.customerName, invoiceNumber: f.invoiceNumber, order: f.order || "",
+      date: f.date, dueDate: f.dueDate, status: f.status, amount,
+    };
+    const oldAmount = Number(selected.amount || 0);
+    if (amount !== oldAmount) data.balance = Math.max(0, round2(balanceOf(selected) + (amount - oldAmount)));
+
+    setCustBusy(true);
+    setCustErr("");
+    try {
+      const updated = await updateErpRecord("invoices", selected.id, data);
+
+      /* find the customer record in fresh data; if there is none yet, create it (so this never fails) */
+      const custData = { name: f.customerName, email: f.email, phone: f.phone, address: f.address, pincode: f.pincode };
+      const freshCustomers = await getErpRecords("customers");
+      const c = custOf(selected, freshCustomers);
+      if (c) await updateErpRecord("customers", c.id, custData);
+      else await createErpRecord("customers", custData);
+
+      /* customer renamed: rename it on this customer's other invoices */
+      if (f.customerName !== oldName) {
+        const invs = await getErpRecords("invoices");
+        await Promise.all(
+          invs.filter((i) => i.customer === oldName).map((i) => updateErpRecord("invoices", i.id, { customer: f.customerName }))
+        );
+      }
+      /* keep payments linked to the (new) invoice number / customer name */
+      try {
+        const pays = await getErpRecords("payments");
+        await Promise.all(
+          pays.filter((p) => p.invoice === oldNumber || (f.customerName !== oldName && p.customer === oldName))
+            .map((p) => updateErpRecord("payments", p.id, {
+              ...(p.invoice === oldNumber ? { invoice: f.invoiceNumber } : {}),
+              ...(p.customer === oldName ? { customer: f.customerName } : {}),
+            }))
+        );
+      } catch { /* payments are optional */ }
+
+      const { _updated, ...fresh } = updated.data;
+      setCustomers(await getErpRecords("customers"));
+      setSelected(fresh);
+      setListKey((k) => k + 1);
+      setShowCust(false);
+      notify("Invoice and customer details updated.");
+    } catch (err) {
+      setCustErr(err?.message || "Could not update. Please try again.");
+    } finally {
+      setCustBusy(false);
+    }
+  };
+
+  /* ---------- share invoice ---------- */
   const defaultTo = (row, via) => {
     const c = custOf(row);
     if (!c || via === "Post") return "";
@@ -263,7 +423,6 @@ export default function InvoicesPage() {
 
     const text = shareForm.msg.trim() || buildShareText(row);
 
-    /* open the link first (before any await) so the browser does not block it */
     if (via === "WhatsApp") {
       window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     } else if (via === "Email") {
@@ -274,7 +433,7 @@ export default function InvoicesPage() {
     } else if (via === "SMS") {
       window.location.href = `sms:${to}?body=${encodeURIComponent(text)}`;
     } else {
-      printRow(row); // Post -> print and send by post
+      printRow(row);
     }
 
     setSharing(true);
@@ -283,7 +442,7 @@ export default function InvoicesPage() {
       const { _updated, ...fresh } = updated.data;
       if (selected && selected.id === row.id) setSelected(fresh);
       setListKey((k) => k + 1);
-      setShareDone(via); // success screen, then close
+      setShareDone(via);
       setTimeout(() => { setShareRow(null); setShareDone(null); }, 1400);
       notify(`Invoice ${row.number} shared via ${via}.`);
     } catch (err) {
@@ -294,7 +453,6 @@ export default function InvoicesPage() {
     }
   };
 
-  /* toast + share popup (same in list view and invoice view) */
   const toast = flash ? (
     <div key={flash} className={`iv-toast ${flashType}`} role="status">
       <i className={`fa-solid ${flashType === "err" ? "fa-triangle-exclamation" : "fa-circle-check"}`} />
@@ -338,7 +496,7 @@ export default function InvoicesPage() {
             <div className="iv-share-grid">
               <div className="iv-modal-body iv-share-form">
                 <div className="iv-share-sum">
-                  <div><small>Balance due</small><b>{money(shareRow.balance)}</b></div>
+                  <div><small>Balance due</small><b>{money(balanceOf(shareRow))}</b></div>
                   <div><small>Due date</small><b>{shareRow.due ? fmtDate(shareRow.due) : "-"}</b></div>
                   <span className={`iv-chip ${STATUS_TONE[effectiveStatus(shareRow)] || "gray"}`}>{effectiveStatus(shareRow)}</span>
                 </div>
@@ -392,7 +550,6 @@ export default function InvoicesPage() {
                 {shareErr && <p className="iv-error" role="alert"><i className="fa-solid fa-circle-exclamation" /> {shareErr}</p>}
               </div>
 
-              {/* live preview of what the customer will receive */}
               <aside className="iv-share-preview" aria-label="Preview">
                 <p className="iv-pv-label">Live preview</p>
 
@@ -420,7 +577,7 @@ export default function InvoicesPage() {
                       <div><span>Subject</span> <b>Invoice {shareRow.number}</b></div>
                     </div>
                     <div className="iv-mail-body">{sText}</div>
-                    <div className="iv-mail-card"><span>Balance due</span><b>{money(shareRow.balance)}</b></div>
+                    <div className="iv-mail-card"><span>Balance due</span><b>{money(balanceOf(shareRow))}</b></div>
                   </div>
                 )}
 
@@ -432,7 +589,7 @@ export default function InvoicesPage() {
                     <div className="iv-paper-row"><span>Date</span><b>{shareRow.date ? fmtDate(shareRow.date) : "-"}</b></div>
                     <div className="iv-paper-row"><span>Due</span><b>{shareRow.due ? fmtDate(shareRow.due) : "-"}</b></div>
                     <div className="iv-paper-row"><span>Amount</span><b>{money(shareRow.amount)}</b></div>
-                    <div className="iv-paper-row total"><span>Balance due</span><b>{money(shareRow.balance)}</b></div>
+                    <div className="iv-paper-row total"><span>Balance due</span><b>{money(balanceOf(shareRow))}</b></div>
                   </div>
                 )}
               </aside>
@@ -452,7 +609,7 @@ export default function InvoicesPage() {
 
   /* ---------- payment (needs ERP Admin approval) ---------- */
   const openPay = (row) => {
-    setForm({ amount: String(round2(row.balance)), method: PAY_METHODS[0], reference: "", date: todayISO() });
+    setForm({ amount: String(round2(balanceOf(row))), method: PAY_METHODS[0], reference: "", date: todayISO() });
     setError("");
     setShowPay(true);
   };
@@ -460,7 +617,7 @@ export default function InvoicesPage() {
   const submitPayment = async (e) => {
     e.preventDefault();
     if (!selected || busy) return;
-    const balance = round2(selected.balance);
+    const balance = round2(balanceOf(selected));
     const amount = round2(form.amount);
 
     if (!canTakePayment(selected)) return setError("This invoice cannot take a payment right now.");
@@ -472,15 +629,14 @@ export default function InvoicesPage() {
     setError("");
     let paymentRow = null;
     try {
-      /* 1) payment record -> Credit & Payments > Payments (status Pending, waits for Admin) */
       const all = await getErpRecords("payments");
       const number = nextPayNo(all);
       const created = await createErpRecord("payments", {
         number,
-        name: selected.customer, // "Payments details" column
-        reference: form.reference.trim() || number, // "Reference / details" column
+        name: selected.customer,
+        reference: form.reference.trim() || number,
         customerName: selected.customer,
-        email: custOf(selected)?.email || "", // "Owner / contact" column
+        email: custOf(selected)?.email || "",
         date: form.date,
         customer: selected.customer,
         invoice: selected.number,
@@ -490,7 +646,6 @@ export default function InvoicesPage() {
       });
       paymentRow = created.data;
 
-      /* 2) invoice: mark as waiting for approval (balance + status are NOT changed yet) */
       const updated = await updateErpRecord("invoices", selected.id, {
         pendingApproval: true,
         pendingPaymentId: paymentRow.id,
@@ -502,7 +657,6 @@ export default function InvoicesPage() {
       setShowPay(false);
       notify(`Payment of ${money(amount)} (${number}) sent to Admin for approval.`);
     } catch (err) {
-      /* roll back the payment row if the invoice could not be updated */
       if (paymentRow?.id != null) { try { await deleteErpRecord("payments", paymentRow.id); } catch { /* ignore */ } }
       setError(err?.message || "Payment failed. Please try again.");
     } finally {
@@ -510,7 +664,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const closeInvoice = () => { setSelected(null); setCopied(false); setShowPay(false); setFlash(""); };
+  const closeInvoice = () => { setSelected(null); setCopied(false); setShowPay(false); setShowCust(false); setFlash(""); };
 
   /* ---------- invoice page ---------- */
   if (selected) {
@@ -521,13 +675,15 @@ export default function InvoicesPage() {
       { icon: "fa-cart-shopping", label: "Order", value: selected.order || "-" },
       { icon: "fa-calendar", label: "Invoice date", value: selected.date ? fmtDate(selected.date) : "-" },
       { icon: "fa-calendar-check", label: "Due date", value: selected.due ? fmtDate(selected.due) : "-" },
+      { icon: "fa-coins", label: "Net amount", value: money(v.net) },
+      { icon: "fa-percent", label: `VAT (${v.vatRate}%)`, value: money(v.vat) },
       {
         icon: "fa-share-nodes", label: "Invoice sharing",
         value: selected.sharedOn ? `${selected.sharedVia || "Shared"} · ${fmtDate(selected.sharedOn)}` : "Not shared yet",
       },
+      { icon: "fa-gauge-high", label: "Service level", value: `${v.sl}%` },
     ];
 
-    /* timeline: Issued -> Due -> Payment */
     const steps = [
       {
         key: "issued", state: "done", icon: "fa-file-circle-plus",
@@ -570,6 +726,11 @@ export default function InvoicesPage() {
                   <i className="fa-solid fa-money-bill-transfer" /> Record payment
                 </button>
               )}
+              {isAdmin && (
+                <button type="button" className="iv-hbtn" onClick={() => openCust(selected)}>
+                  <i className="fa-solid fa-user-pen" /> Edit customer
+                </button>
+              )}
               <button type="button" className="iv-hbtn" onClick={() => shareInvoice(selected)}>
                 <i className="fa-solid fa-share-nodes" /> Share
               </button>
@@ -583,7 +744,11 @@ export default function InvoicesPage() {
         <div className="iv-stats">
           <div className="iv-stat blue">
             <span className="iv-stat-icon"><i className="fa-solid fa-file-invoice-dollar" /></span>
-            <div><small>Amount</small><b>{money(v.amount)}</b></div>
+            <div>
+              <small>Amount</small>
+              <b>{money(v.amount)}</b>
+              <span className="iv-vat-note">incl. VAT {money(v.vat)}</span>
+            </div>
           </div>
           <div className="iv-stat green">
             <span className="iv-stat-icon"><i className="fa-solid fa-circle-check" /></span>
@@ -591,7 +756,13 @@ export default function InvoicesPage() {
           </div>
           <div className={`iv-stat ${v.isPaid ? "green" : v.overdue ? "red" : "orange"}`}>
             <span className="iv-stat-icon"><i className={`fa-solid ${v.isPaid ? "fa-scale-balanced" : "fa-hourglass-half"}`} /></span>
-            <div><small>Balance due</small><b>{money(v.balance)}</b></div>
+            <div>
+              <small>Balance due</small>
+              <b>{money(v.balance)}</b>
+              <span className={`iv-sl ${v.slTone}`} title="Service level = paid / invoice amount">
+                <i className="fa-solid fa-gauge-high" /> Service level {v.sl}%
+              </span>
+            </div>
           </div>
         </div>
 
@@ -663,9 +834,12 @@ export default function InvoicesPage() {
                 </div>
 
                 <div className="iv-prog-rows">
+                  <div><span>Net amount</span><b>{money(v.net)}</b></div>
+                  <div className="vat"><span>VAT ({v.vatRate}%)</span><b>{money(v.vat)}</b></div>
                   <div><span>Invoice total</span><b>{money(v.amount)}</b></div>
                   <div><span>Received</span><b className="g">{money(v.paid)}</b></div>
                   <div className="due"><span>Balance due</span><b>{money(v.balance)}</b></div>
+                  <div><span>Service level</span><b className={`sl-${v.slTone}`}>{v.sl}%</b></div>
                 </div>
 
                 <div className={`iv-note ${v.tone}`}>
@@ -770,6 +944,20 @@ export default function InvoicesPage() {
           </div>
         )}
 
+        {/* ---------- Edit invoice popup (admin only, same popup as New Invoice) ---------- */}
+        {isAdmin && showCust && (
+          <ErpFormModal
+            eyebrow="SALES / All Invoices"
+            title="Edit Invoice"
+            subtitle="Update the invoice and customer details. Required fields are marked with *."
+            icon="fa-pen-to-square"
+            fields={EDIT_FIELDS} form={custForm} setForm={setCustForm}
+            saving={custBusy} error={custErr}
+            submitLabel="Save Changes"
+            onSubmit={submitCust} onClose={() => !custBusy && setShowCust(false)}
+          />
+        )}
+
         {sharePopup}
         {toast}
         {printPortal}
@@ -805,7 +993,25 @@ export default function InvoicesPage() {
     },
     dateColumn("due", "Due Date"),
     amountColumn("amount", "Amount"),
-    amountColumn("balance", "Balance Due"),
+    {
+      key: "vat", label: "VAT", align: "right", sortable: true,
+      sortValue: (row) => vatSplit(row).vat,
+      render: (row) => money(vatSplit(row).vat),
+    },
+    { key: "balance", label: "Balance Due", align: "right", sortable: true, sortValue: (row) => balanceOf(row), render: (row) => money(balanceOf(row)) },
+    {
+      key: "serviceLevel", label: "Service Level", align: "right", sortable: true,
+      sortValue: (row) => serviceLevel(row),
+      render: (row) => {
+        const p = serviceLevel(row);
+        return (
+          <span className={`iv-sl ${slTone(p)}`}>
+            <span className="iv-sl-bar"><i style={{ width: `${p}%` }} /></span>
+            {p}%
+          </span>
+        );
+      },
+    },
     {
       key: "__actions",
       label: "Actions",

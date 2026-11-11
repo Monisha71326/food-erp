@@ -34,6 +34,7 @@ export const state = {
   session: { clientId: "C1", managerId: "AM1" }, // "viewing as" for the Client / Area Manager menus (browser-only)
   clients: [], areaManagers: [], products: [], promotions: [], orders: [], backorders: [], invoices: [], payments: [], tickets: [],
   purchaseOrders: [], goodsReceipts: [], inventory: [], shipments: [], auditLog: [],
+  targets: {}, // area manager targets: { AM1: { sales, collection }, ... } (set by the administrator)
   lastAutoMatch: null,
 };
 
@@ -143,10 +144,10 @@ export function setSession(patch) {
 
 /* ----- orders ----- */
 /* lines = [{code, qty}] -> Promise<{ ok, msg, order? }>   (after ok: goTo("Client Dashboard"))
-   REMARKS:  clientRemark  = note from the client (client portal or typed by the area manager for the client)
-             managerRemark = area manager's own note (only saved when an area manager places the order)
+   REMARKS:  clientRemark  = the client's note (client portal, or typed by the area manager for the client)
+             managerRemark = area manager's own note (older callers only; the order form no longer sends it)
              remark        = old single field, still accepted so older callers keep working */
-export function placeOrder({ clientId, lines, promoCode = "", placedBy, clientRemark = "", managerRemark = "", remark = "" }) {
+export function placeOrder({ clientId, lines, promoCode = "", placedBy, clientRemark = "", managerRemark = "", remark = "", visitType = "", visitDistanceKm = null }) {
   return act("POST", "/orders", {
     clientId,
     lines: lines.filter((l) => l.qty > 0).map((l) => ({ code: l.code, qty: l.qty })),
@@ -154,7 +155,9 @@ export function placeOrder({ clientId, lines, promoCode = "", placedBy, clientRe
     placedBy,
     clientRemark,
     managerRemark,
-    remark: remark || clientRemark || managerRemark, // fallback so an older localDb.js still saves something
+    remark: remark || clientRemark || managerRemark,
+    visitType,          // "onsite" | "offsite" | ""
+    visitDistanceKm,
   });
 }
 export const updateOrder = (orderId, { lines, promoCode = "" }) =>
@@ -254,6 +257,16 @@ export function deleteInvoicePhoto(invoiceId, photoId, { role = "client", manage
 export const createTicket = (invoiceId, payload) => act("POST", `/invoices/${invoiceId}/tickets`, payload);
 /* staff: { status, response } */
 export const updateTicket = (id, patch) => act("PUT", `/tickets/${id}`, patch);
+
+/* ----- area manager targets ----- */
+/* The ADMINISTRATOR sets them (Manager Reports page); the area manager only views them.
+   managerTargets(managerId) -> { sales, collection }  (0 = no target set) */
+export const managerTargets = (managerId) => {
+  const t = state.targets?.[managerId] || {};
+  return { sales: Number(t.sales) || 0, collection: Number(t.collection) || 0 };
+};
+export const saveManagerTargets = (managerId, { sales, collection }) =>
+  act("PUT", `/managers/${managerId}/targets`, { sales, collection });
 
 /* ----- visits (check-in / check-out) ----- */
 /* registerVisit = ENTER STORE (check in). Send lat/lng for a real GPS check or distanceKm for the demo buttons -> Promise<{ ok, msg }> */

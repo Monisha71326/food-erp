@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { fmtDate } from "@/utils/format.js";
 import ReviewModal from "./ReviewModal.jsx";
+import NewPaymentModal from "./NewPaymentModal.jsx";
 import "./PaymentsView.css";
 
 const money = (n) => "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -36,11 +37,12 @@ const needsApproval = (row) => isPending(row) && !!row.invoice;
 const LEGACY_STATUS = { draft: "Pending", active: "Completed" };
 const fixStatus = (s) => LEGACY_STATUS[String(s || "").trim().toLowerCase()] || s;
 
-export default function PaymentsView({ rows: rawRows, loading, canApprove, onApprove, onReject, onApproveMany, onEdit, onDelete, onNew }) {
+export default function PaymentsView({ rows: rawRows, loading, canApprove, onApprove, onReject, onApproveMany, onEdit, onDelete, onNew, onCreate }) {
   const [tab, setTab] = useState("all");
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState([]); // ids ticked for bulk approve
   const [review, setReview] = useState(null); // row open in the review popup
+  const [adding, setAdding] = useState(false); // "Add payment" popup (customer -> invoice -> pay)
   const rows = useMemo(() => rawRows.map((r) => ({ ...r, status: fixStatus(r.status) })), [rawRows]);
 
   const pending = useMemo(() => rows.filter(isPending), [rows]);
@@ -125,11 +127,16 @@ export default function PaymentsView({ rows: rawRows, loading, canApprove, onApp
               </button>
             ))}
           </div>
-          <label className="pv-search">
-            <i className="fa-solid fa-magnifying-glass" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customer, invoice, reference..." />
-            {query && <button type="button" aria-label="Clear" onClick={() => setQuery("")}><i className="fa-solid fa-xmark" /></button>}
-          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <label className="pv-search">
+              <i className="fa-solid fa-magnifying-glass" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customer, invoice, reference..." />
+              {query && <button type="button" aria-label="Clear" onClick={() => setQuery("")}><i className="fa-solid fa-xmark" /></button>}
+            </label>
+            <button type="button" className="pv-banner-btn" onClick={() => setAdding(true)}>
+              <i className="fa-solid fa-plus" /> Add payment
+            </button>
+          </div>
         </div>
 
         {/* bulk action bar */}
@@ -231,8 +238,8 @@ export default function PaymentsView({ rows: rawRows, loading, canApprove, onApp
                   <td colSpan={cols} className="pv-empty">
                     <i className="fa-regular fa-folder-open" />
                     <b>{rows.length ? "No matching payments" : "No payments yet"}</b>
-                    <span>{rows.length ? "Try another tab or clear the search." : "Payments submitted from the Invoices page appear here."}</span>
-                    {!rows.length && <button type="button" className="pv-banner-btn" onClick={onNew}>New payment</button>}
+                    <span>{rows.length ? "Try another tab or clear the search." : "Add a payment for a customer's invoice, or submit one from the Invoices page."}</span>
+                    {!rows.length && <button type="button" className="pv-banner-btn" onClick={() => setAdding(true)}>Add payment</button>}
                   </td>
                 </tr>
               )}
@@ -254,6 +261,8 @@ export default function PaymentsView({ rows: rawRows, loading, canApprove, onApp
           onReject={onReject}
         />
       )}
+
+      {adding && <NewPaymentModal onClose={() => setAdding(false)} onCreate={onCreate} />}
     </div>
   );
 }

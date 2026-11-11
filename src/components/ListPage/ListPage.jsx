@@ -47,6 +47,7 @@ const TODAY_KEYS = ["date", "orderDate", "invoiceDate", "paymentDate"];
 
 const titleCase = (value = "") => value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const singular = (entity) => (entity === "customers" ? "Customer" : titleCase(entity).replace(/([^s])s$/i, "$1"));
+const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const aliasSiblings = (key) => ERP_ALIAS_GROUPS.find((group) => group.includes(key)) || [key];
 
 /* "sales orders" / "Sales Orders" / "sales-orders" -> "sales-orders" (only used for FIELD_MAP / NUMBER_PREFIX lookups;
@@ -159,6 +160,19 @@ export default function ListPage({ className = "", eyebrow, title, icon, entity,
     event.preventDefault(); setSaving(true); setFormError("");
     const data = { ...form };
     for (const f of fields) if (f.type === "number") data[f.key] = Number(data[f.key] || 0);
+    /* invoices: the form has no "balance" field, so keep it in step with the amount.
+       New invoice  -> nothing paid yet (balance = amount), unless it is created as Paid.
+       Edit invoice -> if the amount changed, move the balance by the same difference (never below 0). */
+    if (normEntity(entity) === "invoices") {
+      const amount = Number(data.amount || 0);
+      if (!editing) {
+        data.balance = String(data.status || "").toLowerCase() === "paid" ? 0 : amount;
+      } else {
+        const oldAmount = Number(editing.amount || 0);
+        const oldBalance = editing.balance == null || editing.balance === "" ? oldAmount : Number(editing.balance);
+        if (amount !== oldAmount) data.balance = Math.max(0, round2(oldBalance + (amount - oldAmount)));
+      }
+    }
     try {
       if (editing) await updateErpRecord(entity, editing.id, data);
       else await createErpRecord(entity, data);

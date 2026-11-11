@@ -22,7 +22,7 @@ const groupFulfilment = {
 const groupSalesMarketing = {
   label: "Marketing", icon: "fa-bullhorn",
   children: [
-    { label: "Products & Pricing", icon: "fa-tags" },
+    { label: "Products & Services", icon: "fa-tags" },
     { label: "Promotions", icon: "fa-percent" },
     { label: "Sales Reporting", icon: "fa-chart-column" },
   ],
@@ -265,7 +265,7 @@ export const navOrderHubAll = [
       /* Own label (the page is mapped to "Credit Aging Report" too in pageRegistry.js),
          so it does not clash with the Sales & Invoice menu item of the same name. */
       { label: "Client Credit Aging", icon: "fa-hourglass-half" },
-      { label: "Manager Reports", icon: "fa-chart-column" }, // area manager reports (collections, outstanding)
+      { label: "Manager Reports", icon: "fa-chart-column" }, // area manager reports (collections, outstanding); the administrator sets targets here
       { label: "Place Order for Client", icon: "fa-cart-plus" },
     ],
   },
@@ -298,8 +298,9 @@ export const navOrderHubAll = [
 /* Hub groups hidden everywhere. Remove a label from this list to show it again. */
 export const HIDDEN_HUB = ["Finance & Credit", "Supply Chain"];
 
-/* Hub groups that now live in navPrimary (so they don't appear twice in the "Order Hub" section). */
-const MOVED_TO_PRIMARY = ["Sales & Invoice", "Sales & Marketing"];
+/* Hub groups that now live in navPrimary (so they don't appear twice in the "Order Hub" section).
+   The marketing group's label is "Marketing" (it used to be "Sales & Marketing"); both are listed so it never shows twice. */
+const MOVED_TO_PRIMARY = ["Sales & Invoice", "Marketing", "Sales & Marketing"];
 
 /* Order Hub section shown in the sidebar for the ERP Administrator.
    (Area Manager group now shows "Client Credit Aging" here as well.) */

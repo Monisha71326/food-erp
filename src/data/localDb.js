@@ -15,13 +15,20 @@
  *    The 10 demo products point to /products/<CODE>.png  (files live in public/products/).
  *  - Store visits now have CHECK-IN (registerVisit) and CHECK-OUT (checkOutVisit) times
  *    plus the time spent in the store (durationMin).
- *  - Orders can carry an optional `remark` (max 250 chars) typed on the cart page.
+ *    Check-in needs only a remark. GPS distance and photo are optional.
+ *  - Orders carry an optional `clientRemark` (max 250 chars) typed on the cart page.
+ *    (`managerRemark` is still accepted for older callers; `remark` mirrors the client remark.)
+ *  - Orders placed by an AREA MANAGER also carry `visitType` ("onsite" | "offsite") and
+ *    `visitDistanceKm` (distance from the client store when the order was placed).
+ *    Client portal orders and old orders have visitType "".
+ *  - Area manager TARGETS (sales / collection) are set by the administrator and saved in `targets`,
+ *    one entry per area manager id. The area manager only views them.
  *  - Handlers return { ok, msg, ... } objects the pages already expect.
  */
 const KEY = "meg-hub-db";
 const DATA_VERSION = 6; // 6 = demo products got their image (/products/<CODE>.png)
 const VAT_RATE = 0.2;
-const VISIT_RADIUS_KM = 0.3;
+const VISIT_RADIUS_KM = 0.3; // visit is marked "verified" only when inside this radius
 const MAX_ORDER_REMARK = 250; // REMARK
 
 /* emails for the demo area managers (used when an old saved database has none) */
@@ -252,6 +259,7 @@ function seed() {
     dataVersion: DATA_VERSION, seq: 1100, visitSeq: 0, backorderSeq: 10,
     clients, areaManagers, products, promotions, orders, backorders, invoices, payments: [], tickets: [],
     purchaseOrders, goodsReceipts, inventory, shipments, auditLog: logs, lastAutoMatch: null,
+    targets: {}, // area manager targets: { AM1: { sales, collection }, ... }
   };
 }
 
@@ -341,6 +349,21 @@ function syncPromoIds(d) {
   d.clients.forEach((c) => { c.promoIds = d.promotions.filter((p) => promoForClient(p, c.id)).map((p) => p.id); });
 }
 
+/* Every client must be covered by an area manager (placeOrder rejects "<manager> does not cover <client>").
+   A client nobody covers is given to the manager who looks after the fewest clients. Returns true if anything changed. */
+function coverUnassigned(d) {
+  const ms = d.areaManagers || [];
+  if (!ms.length) return false;
+  let changed = false;
+  (d.clients || []).forEach((c) => {
+    if (ms.some((m) => (m.clientIds || []).includes(c.id))) return;
+    const m = ms.reduce((a, b) => ((b.clientIds || []).length < (a.clientIds || []).length ? b : a));
+    m.clientIds = [...(m.clientIds || []), c.id];
+    changed = true;
+  });
+  return changed;
+}
+
 /* ---------------- storage ---------------- */
 let db = null;
 function load() {
@@ -358,6 +381,8 @@ function load() {
   // Older saved databases have no payments / tickets list yet.
   if (!Array.isArray(db.payments)) { db.payments = []; changed = true; }
   if (!Array.isArray(db.tickets)) { db.tickets = []; changed = true; }
+  // Older saved databases have no area manager targets yet.
+  if (!db.targets || typeof db.targets !== "object" || Array.isArray(db.targets)) { db.targets = {}; changed = true; }
 
   // Repair area managers saved without clients, visit list or email.
   (db.areaManagers || []).forEach((m) => {
@@ -365,6 +390,10 @@ function load() {
     if (!Array.isArray(m.clientIds) || !m.clientIds.length) { m.clientIds = db.clients.map((c) => c.id); changed = true; }
     if (m.email == null) { m.email = MANAGER_EMAILS[m.id] || ""; changed = true; }
   });
+  // A client with no credit limit (0) could never place an order: give it the default limit.
+  (db.clients || []).forEach((c) => { if (!c.creditLimit) { c.creditLimit = 3000; changed = true; } });
+  // Clients nobody covers (e.g. added from the Customer List) are given to an area manager.
+  if (coverUnassigned(db)) changed = true;
   if ((db.dataVersion || 0) < DATA_VERSION) { upgrade(db); changed = true; }
   if (changed) persist();
   return db;
@@ -426,6 +455,35 @@ export function createManagerAccount({ name, email = "", clientIds = [] }) {
   return id;
 }
 export const listClients = () => load().clients.map((c) => ({ id: c.id, name: c.name }));
+
+/* Area manager sign-in location (saved at login, shown to admin in Live Managers) */
+export function saveManagerLocation(managerId, { lat, lng, accuracy } = {}) {
+  const d = load();
+  const m = d.areaManagers.find((x) => x.id === managerId);
+  if (!m) return false;
+  m.location = {
+    lat: Number(lat),
+    lng: Number(lng),
+    accuracy: accuracy == null ? null : Math.round(accuracy),
+    at: new Date().toISOString(),
+  };
+  log(m.name, "Signed in with location on");
+  persist();
+  return true;
+}
+
+export const listManagerLocations = () =>
+  load().areaManagers.map((m) => ({ id: m.id, name: m.name, location: m.location || null }));
+
+/* used by "Forgot password": the email on file for a client / area manager account */
+export function getAccountContact(linkedId) {
+  const d = load();
+  const c = d.clients.find((x) => x.id === linkedId);
+  if (c) return { email: c.email || "" };
+  const m = d.areaManagers.find((x) => x.id === linkedId);
+  if (m) return { email: m.email || "" };
+  return null;
+}
 
 /* ---------------- read ---------------- */
 const getState = () => clone(load());
@@ -494,8 +552,11 @@ function priceLines(d, c, lines, promoCode) {
   return { priced, promoNote };
 }
 
-/* REMARK: remark is optional, trimmed and limited to 250 characters */
-function placeOrder({ clientId, lines, promoCode = "", placedBy = "Client portal", remark = "" }) {
+/* REMARK: the client remark is optional, trimmed and limited to 250 characters.
+   (`remark` is the old single field; it is treated as the client remark.)
+   ONSITE / OFFSITE: only for orders placed by an area manager.
+   visitType = "onsite" | "offsite", visitDistanceKm = distance from the client store (or null). */
+function placeOrder({ clientId, lines, promoCode = "", placedBy = "Client portal", remark = "", clientRemark = "", managerRemark = "", visitType = "", visitDistanceKm = null }) {
   const d = load();
   const c = need(d.clients, (x) => x.id === clientId, "Unknown client.");
   let logUser = c.name, placedByText = "Client portal";
@@ -509,11 +570,26 @@ function placeOrder({ clientId, lines, promoCode = "", placedBy = "Client portal
   const total = priced.reduce((s, l) => s + l.qty * l.price, 0);
   const projected = balanceOf(clientId) + total;
   if (projected > c.creditLimit) fail(`This order would put ${c.name} at ${gbp(projected)}, over the ${gbp(c.creditLimit)} credit limit. Contact the account manager to proceed.`);
-  const orderRemark = String(remark ?? "").trim().slice(0, MAX_ORDER_REMARK); // REMARK
+  const clientNote = String(clientRemark || remark || "").trim().slice(0, MAX_ORDER_REMARK); // REMARK
+  const managerNote = mgrName ? String(managerRemark || "").trim().slice(0, MAX_ORDER_REMARK) : ""; // only when an area manager places it
+
+  /* ONSITE / OFFSITE (area manager orders only) */
+  const vType = mgrName && ["onsite", "offsite"].includes(visitType) ? visitType : "";
+  const vNum = Number(visitDistanceKm);
+  const vDist = vType && visitDistanceKm != null && visitDistanceKm !== "" && Number.isFinite(vNum) && vNum >= 0
+    ? Math.round(vNum * 1000) / 1000
+    : null;
+
   const id = nextId("ORD");
-  const order = { id, clientId, placedBy: placedByText, date: todayISO(0), status: "Placed", promoCode: promoNote, lines: priced, pod: null, remark: orderRemark }; // REMARK
+  const order = {
+    id, clientId, placedBy: placedByText, date: todayISO(0), status: "Placed", promoCode: promoNote, lines: priced, pod: null,
+    remark: clientNote, clientRemark: clientNote, managerRemark: managerNote, // REMARK
+    visitType: vType, visitDistanceKm: vDist,
+  };
   d.orders.push(order);
-  log(logUser, mgrName ? `Placed order ${id} on behalf of ${c.name}` : `Placed order ${id}${promoNote ? " using promo " + promoNote : ""}`);
+  log(logUser, mgrName
+    ? `Placed ${vType ? vType.toUpperCase() + " " : ""}order ${id} on behalf of ${c.name}`
+    : `Placed order ${id}${promoNote ? " using promo " + promoNote : ""}`);
   persist();
   return { ok: true, msg: `Order ${id} placed for ${c.name} - ${gbp(total)}.`, order: clone(order) };
 }
@@ -817,6 +893,7 @@ function addClient({ name, contact, email, phone = "", pincode = "", creditLimit
     creditLimit: money(creditLimit, "Credit limit"), priceOverrides: {}, promoIds: [],
     address: String(address || "-").slice(0, 200), lat: null, lng: null,
   });
+  coverUnassigned(d); // the new client goes to an area manager straight away
   log("Admin", `Added client ${name}`);
   persist();
   return { ok: true, msg: `Client ${name} added.`, id };
@@ -1182,9 +1259,31 @@ function deleteShipment(id) {
   return { ok: true, msg: `Label ${s.id} deleted.` };
 }
 
+/* ---------------- actions: area manager targets ---------------- */
+/* The ADMINISTRATOR sets the sales / collection target of an area manager (0 = no target).
+   The area manager only views it on his Reports page. */
+const targetAmount = (v, label) => {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n) || n < 0 || n > 100000000) fail(`${label} must be a valid amount.`);
+  return round2(n);
+};
+function saveManagerTargets(managerId, { sales, collection } = {}) {
+  const d = load();
+  const m = need(d.areaManagers, (x) => x.id === managerId, "Unknown area manager.");
+  if (!d.targets || typeof d.targets !== "object") d.targets = {};
+  d.targets[managerId] = {
+    sales: targetAmount(sales, "Sales target"),
+    collection: targetAmount(collection, "Collection target"),
+  };
+  log("Admin", `Set targets for ${m.name}: sales ${gbp(d.targets[managerId].sales)}, collection ${gbp(d.targets[managerId].collection)}`);
+  persist();
+  return { ok: true, msg: `Targets saved for ${m.name}.` };
+}
+
 /* ---------------- actions: visits (check-in / check-out) ---------------- */
-/* ENTER STORE = check in. Needs GPS inside the store radius + a store photo.
-   Saves checkIn (ISO time). checkOut / durationMin stay empty until the manager leaves. */
+/* ENTER STORE = check in. Only a remark is needed.
+   GPS distance and photo are optional: if the distance is known it is saved,
+   and the visit is marked "verified" only when it is inside the store radius. */
 function registerVisit(managerId, { clientId, lat, lng, distanceKm, photoDataUrl, remark }) {
   const d = load();
   const m = need(d.areaManagers, (x) => x.id === managerId, "Unknown area manager.");
@@ -1192,22 +1291,32 @@ function registerVisit(managerId, { clientId, lat, lng, distanceKm, photoDataUrl
   const open = m.visits.find((v) => v.checkIn && !v.checkOut);
   if (open) fail(`You are already checked in at ${open.client}. Tap "Leave store" first.`);
   const c = need(d.clients, (x) => x.id === clientId, "Unknown client.");
-  let dist = Number(distanceKm);
-  if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && c.lat != null) dist = haversineKm(Number(lat), Number(lng), c.lat, c.lng);
-  if (!Number.isFinite(dist) || dist < 0) fail("Location check is missing.");
-  if (dist > VISIT_RADIUS_KM) fail(`You are ${dist.toFixed(2)}km from ${c.name} - move closer (within ${VISIT_RADIUS_KM * 1000}m) to check in.`);
-  if (typeof photoDataUrl !== "string" || !/^data:image\/(jpeg|png|webp);base64,/.test(photoDataUrl)) fail("A store photo is required to check in.");
+
+  /* distance is optional (null when GPS or the store location is missing) */
+  let dist = distanceKm == null || distanceKm === "" ? null : Number(distanceKm);
+  if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && c.lat != null) {
+    dist = haversineKm(Number(lat), Number(lng), c.lat, c.lng);
+  }
+  if (dist != null && (!Number.isFinite(dist) || dist < 0)) dist = null;
+
+  /* photo is optional: saved only when it is a valid image */
+  const photo = typeof photoDataUrl === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(photoDataUrl) ? photoDataUrl : null;
+
   const checkInRemark = String(remark ?? "").trim().slice(0, 300);
   if (checkInRemark.length < 3) fail("Please enter a remark (at least 3 characters) to check in.");
+
   const now = new Date();
   m.visits.unshift({
     id: nextId("V"), client: c.name, clientId: c.id,
     date: todayISO(0), time: now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
-    note: checkInRemark, verified: true, distanceKm: Math.round(dist * 1000) / 1000, photoDataUrl,
+    note: checkInRemark,
+    verified: dist != null && dist <= VISIT_RADIUS_KM,
+    distanceKm: dist != null ? Math.round(dist * 1000) / 1000 : null,
+    photoDataUrl: photo,
     checkIn: now.toISOString(), checkOut: null, durationMin: null,
   });
   const when = now.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
-  log(m.name, `Checked in at ${c.name} (${when}) - GPS + photo verified`);
+  log(m.name, `Checked in at ${c.name} (${when})`);
   persist();
   return { ok: true, msg: `Checked in at ${c.name} at ${when}.` };
 }
@@ -1304,6 +1413,9 @@ const routes = [
   ["POST", /^\/invoices\/([^/]+)\/photos$/, (m, b) => addInvoicePhotos(m[1], b || {})],
   ["DELETE", /^\/invoices\/([^/]+)\/photos\/([^/]+)$/, (m, b) => deleteInvoicePhoto(m[1], m[2], b || {})],
   ["PUT", /^\/tickets\/([^/]+)$/, (m, b) => updateTicket(m[1], b || {})],
+
+  // area manager targets (set by the administrator)
+  ["PUT", /^\/managers\/([^/]+)\/targets$/, (m, b) => saveManagerTargets(m[1], b || {})],
 
   // visits (check-in / check-out)
   ["POST", /^\/managers\/([^/]+)\/visits$/, (m, b) => registerVisit(m[1], b || {})],

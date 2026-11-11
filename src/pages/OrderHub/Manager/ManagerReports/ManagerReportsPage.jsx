@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import PageHeader from "@/components/PageHeader/PageHeader.jsx";
-import { useHub, client, clientManager, gbp, invoicePayments } from "@/data/orderHubStore.js";
+import { useHub, client, clientManager, gbp, invoicePayments, setSession, managerTargets, saveManagerTargets } from "@/data/orderHubStore.js";
 import { fmtDate } from "@/utils/format.js";
 import "./ManagerReportsPage.css";
 
@@ -23,6 +24,8 @@ const inRange = (d, from, to) => {
   const day = String(d).slice(0, 10);
   return (!from || day >= from) && (!to || day <= to);
 };
+const pctOf = (a, t) => (t > 0 ? Math.round((a / t) * 100) : null);
+const pctText = (a, t) => (pctOf(a, t) === null ? "-" : pctOf(a, t) + "%");
 
 function downloadCsv(filename, rows) {
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -34,20 +37,6 @@ function downloadCsv(filename, rows) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-/* ---------- targets (saved in this browser, one set per area manager) ---------- */
-const targetKey = (managerId) => `mgr-targets-${managerId || "all"}`;
-const loadTargets = (managerId) => {
-  try {
-    const t = JSON.parse(localStorage.getItem(targetKey(managerId)) || "{}");
-    return { sales: Number(t.sales) || 0, collection: Number(t.collection) || 0 };
-  } catch {
-    return { sales: 0, collection: 0 };
-  }
-};
-const saveTargets = (managerId, t) => {
-  try { localStorage.setItem(targetKey(managerId), JSON.stringify(t)); } catch { /* ignore */ }
-};
 
 /* circular progress ring */
 const RING_R = 42;
@@ -67,17 +56,19 @@ function Ring({ pct, color }) {
   );
 }
 
-/* one target card: ring, achieved, target, status, remaining */
+/* one target card. onSet is only passed for the administrator */
 function TargetCard({ title, icon, tone, target, achieved, onSet }) {
   if (!(target > 0)) {
     return (
       <div className="mt-card mt-empty">
         <span className="mt-empty-ico" style={{ color: tone }}><i className={`fa-solid ${icon}`} /></span>
         <b>{title}</b>
-        <small>No target set</small>
-        <button type="button" className="mt-btn ghost" onClick={onSet}>
-          <i className="fa-solid fa-plus" /> Set target
-        </button>
+        <small>{onSet ? "No target set" : "No target set by the administrator yet"}</small>
+        {onSet && (
+          <button type="button" className="mt-btn ghost" onClick={onSet}>
+            <i className="fa-solid fa-plus" /> Set target
+          </button>
+        )}
       </div>
     );
   }
@@ -114,8 +105,10 @@ function TargetCard({ title, icon, tone, target, achieved, onSet }) {
   );
 }
 
-export default function ManagerReportsPage() {
+/* Administrator (session not locked) -> can set targets. Area manager (locked) -> view only. */
+export default function ManagerReportsPage({ canSetTargets: canSetProp }) {
   const s = useHub();
+  const canSetTargets = canSetProp ?? !s.session?.locked;
   const managerId = s.session?.managerId;
   const managerName = (s.areaManagers || []).find((m) => m.id === managerId)?.name;
 
@@ -124,27 +117,58 @@ export default function ManagerReportsPage() {
   const [to, setTo] = useState(todayStr());
 
   /* targets */
-  const [targets, setTargets] = useState(() => loadTargets(managerId));
-  const [salesInput, setSalesInput] = useState(() => String(loadTargets(managerId).sales || ""));
-  const [collInput, setCollInput] = useState(() => String(loadTargets(managerId).collection || ""));
-  const [editing, setEditing] = useState(() => {
-    const t = loadTargets(managerId);
-    return !(t.sales > 0 || t.collection > 0);
-  });
+  const targets = managerTargets(managerId);
+  const [salesInput, setSalesInput] = useState(String(targets.sales || ""));
+  const [collInput, setCollInput] = useState(String(targets.collection || ""));
+  const [editing, setEditing] = useState(false);
+  const [showColl, setShowColl] = useState(false);
   const [saved, setSaved] = useState(false);
-  const submitTargets = (e) => {
+  const [err, setErr] = useState("");
+
+  const closeEdit = () => { setEditing(false); setErr(""); };
+  const openEdit = () => {
+    if (!canSetTargets) return;
+    setSalesInput(String(targets.sales || ""));
+    setCollInput(String(targets.collection || ""));
+    setErr("");
+    setEditing(true);
+  };
+
+  /* refill form values when manager / saved targets change (never auto-open the popup) */
+  useEffect(() => {
+    setSalesInput(String(targets.sales || ""));
+    setCollInput(String(targets.collection || ""));
+    setErr("");
+    setEditing(false);
+  }, [managerId, canSetTargets, targets.sales, targets.collection]);
+
+  /* Esc to close + background scroll lock (for both popups) */
+  useEffect(() => {
+    if (!editing && !showColl) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") { closeEdit(); setShowColl(false); }
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [editing, showColl]);
+
+  const submitTargets = async (e) => {
     e.preventDefault();
-    const t = { sales: Math.max(0, Number(salesInput) || 0), collection: Math.max(0, Number(collInput) || 0) };
-    saveTargets(managerId, t);
-    setTargets(t);
+    if (!canSetTargets) return;
+    const r = await saveManagerTargets(managerId, {
+      sales: Math.max(0, Number(salesInput) || 0),
+      collection: Math.max(0, Number(collInput) || 0),
+    });
+    if (r && r.ok === false) { setErr(r.msg || "Could not save the targets."); return; }
+    setErr("");
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-  };
-  const openEdit = () => {
-    setSalesInput(String(targets.sales || ""));
-    setCollInput(String(targets.collection || ""));
-    setEditing(true);
   };
 
   const pickPreset = (p) => {
@@ -154,11 +178,9 @@ export default function ManagerReportsPage() {
   };
 
   const data = useMemo(() => {
-    // invoices of clients handled by this area manager
     const mine = (s.invoices || []).filter((inv) => !managerId || clientManager(inv.clientId)?.id === managerId);
     const invoices = mine.filter((inv) => inRange(inv.date, from, to));
 
-    // every payment against those invoices that falls inside the date range
     const payments = mine
       .flatMap((inv) => invoicePayments(inv.id).map((p) => ({ ...p, clientId: inv.clientId, invoiceId: inv.id })))
       .filter((p) => inRange(p.date, from, to))
@@ -170,7 +192,11 @@ export default function ManagerReportsPage() {
     const settled = round2(invoiced - outstanding);
     const rate = invoiced ? Math.round((settled / invoiced) * 100) : 0;
 
-    // per client
+    const cashPays = payments.filter((p) => p.method === "Cash");
+    const chequePays = payments.filter((p) => p.method === "Cheque");
+    const cash = round2(cashPays.reduce((t, p) => t + Number(p.amount || 0), 0));
+    const cheque = round2(chequePays.reduce((t, p) => t + Number(p.amount || 0), 0));
+
     const byClient = {};
     invoices.forEach((inv) => {
       const row = (byClient[inv.clientId] ||= { id: inv.clientId, count: 0, invoiced: 0, paid: 0, due: 0 });
@@ -183,13 +209,52 @@ export default function ManagerReportsPage() {
       .map((r) => ({ ...r, name: client(r.id)?.name || r.id, invoiced: round2(r.invoiced), paid: round2(r.paid), due: round2(r.due) }))
       .sort((a, b) => b.due - a.due);
 
-    // per method
     const byMethod = {};
     payments.forEach((p) => { byMethod[p.method] = round2((byMethod[p.method] || 0) + Number(p.amount || 0)); });
     const methods = Object.entries(byMethod).map(([method, amount]) => ({ method, amount })).sort((a, b) => b.amount - a.amount);
 
-    return { invoices, payments, invoiced, outstanding, collected, rate, clients, methods };
+    return {
+      invoices, payments, invoiced, outstanding, collected, rate, clients, methods,
+      cash, cashCount: cashPays.length, cheque, chequeCount: chequePays.length,
+    };
   }, [s, managerId, from, to]);
+
+  /* total of the targets that are set */
+  const totalTarget = round2((targets.sales || 0) + (targets.collection || 0));
+  const totalAchieved = round2(
+    (targets.sales > 0 ? data.invoiced : 0) +
+    (targets.collection > 0 ? data.collected : 0)
+  );
+
+  /* every area manager's targets vs achieved (administrator view) */
+  const teamRows = useMemo(() => {
+    if (!canSetTargets) return [];
+    return (s.areaManagers || []).map((m) => {
+      const t = managerTargets(m.id);
+      const mine = (s.invoices || []).filter((inv) => clientManager(inv.clientId)?.id === m.id);
+      const invoiced = round2(
+        mine.filter((inv) => inRange(inv.date, from, to)).reduce((sum, inv) => sum + Number(inv.amount || 0), 0)
+      );
+      const collected = round2(
+        mine
+          .flatMap((inv) => invoicePayments(inv.id))
+          .filter((p) => inRange(p.date, from, to))
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+      );
+      return {
+        id: m.id, name: m.name,
+        salesTarget: Number(t.sales || 0), invoiced,
+        collTarget: Number(t.collection || 0), collected,
+      };
+    });
+  }, [s, canSetTargets, from, to]);
+
+  const teamTotals = useMemo(() => ({
+    salesTarget: round2(teamRows.reduce((t, r) => t + r.salesTarget, 0)),
+    invoiced: round2(teamRows.reduce((t, r) => t + r.invoiced, 0)),
+    collTarget: round2(teamRows.reduce((t, r) => t + r.collTarget, 0)),
+    collected: round2(teamRows.reduce((t, r) => t + r.collected, 0)),
+  }), [teamRows]);
 
   const maxMethod = Math.max(1, ...data.methods.map((m) => m.amount));
   const maxDue = Math.max(1, ...data.clients.map((c) => c.due));
@@ -200,8 +265,17 @@ export default function ManagerReportsPage() {
   const exportCsv = () => {
     const rows = [
       ["Target", "Target amount", "Achieved", "Achieved %"],
-      ["Sales (Invoiced)", targets.sales, data.invoiced, targets.sales ? Math.round((data.invoiced / targets.sales) * 100) + "%" : "-"],
-      ["Collection (Collected)", targets.collection, data.collected, targets.collection ? Math.round((data.collected / targets.collection) * 100) + "%" : "-"],
+      ["Sales (Invoiced)", targets.sales, data.invoiced, pctText(data.invoiced, targets.sales)],
+      ["Collection (Collected)", targets.collection, data.collected, pctText(data.collected, targets.collection)],
+      ["Total", totalTarget, totalAchieved, pctText(totalAchieved, totalTarget)],
+      [],
+      ...(canSetTargets ? [
+        ["Area manager", "Sales target", "Sales achieved", "Collection target", "Collected"],
+        ...teamRows.map((r) => [r.name, r.salesTarget, r.invoiced, r.collTarget, r.collected]),
+        [],
+      ] : []),
+      ["Cash", data.cash, data.cashCount + " payment(s)"],
+      ["Cheque", data.cheque, data.chequeCount + " payment(s)"],
       [],
       ["Client", "Invoices", "Invoiced", "Paid", "Outstanding"],
       ...data.clients.map((c) => [c.name, c.count, c.invoiced, c.paid, c.due]),
@@ -217,6 +291,131 @@ export default function ManagerReportsPage() {
       <i className="fa-solid fa-file-csv" /> Export CSV
     </button>
   );
+
+  /* ---------- Set target popup (rendered into document.body) ---------- */
+  const modal = canSetTargets && editing ? createPortal(
+    <div className="mtm-backdrop" onMouseDown={closeEdit}>
+      <form
+        className="mtm-modal"
+        onSubmit={submitTargets}
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mtm-title"
+      >
+        <div className="mtm-head">
+          <h4 id="mtm-title"><i className="fa-solid fa-bullseye" /> Set targets</h4>
+          <button type="button" className="mtm-x" onClick={closeEdit} aria-label="Close">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        {managerName && <p className="mtm-sub">For <b>{managerName}</b></p>}
+
+        <label>
+          <span>Sales target</span>
+          <div className="mtm-input">
+            <em>£</em>
+            <input type="number" min="0" step="0.01" value={salesInput} placeholder="10000" autoFocus
+              onChange={(e) => setSalesInput(e.target.value)} />
+          </div>
+        </label>
+
+        <label>
+          <span>Collection target</span>
+          <div className="mtm-input">
+            <em>£</em>
+            <input type="number" min="0" step="0.01" value={collInput} placeholder="8000"
+              onChange={(e) => setCollInput(e.target.value)} />
+          </div>
+        </label>
+
+        {err && <small className="mtm-err">{err}</small>}
+
+        <div className="mtm-act">
+          <button type="button" className="mt-btn ghost" onClick={closeEdit}>Cancel</button>
+          <button type="submit" className="mt-btn primary">
+            <i className="fa-solid fa-floppy-disk" /> Save targets
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body
+  ) : null;
+
+  /* ---------- Collection targets popup (all area managers) ---------- */
+  const collModal = canSetTargets && showColl ? createPortal(
+    <div className="mtm-backdrop" onMouseDown={() => setShowColl(false)}>
+      <div
+        className="mtm-modal wide"
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mtc-title"
+      >
+        <div className="mtm-head">
+          <h4 id="mtc-title"><i className="fa-solid fa-sack-dollar" /> Collection targets by area manager</h4>
+          <button type="button" className="mtm-x" onClick={() => setShowColl(false)} aria-label="Close">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <p className="mtm-sub"><i className="fa-regular fa-calendar" /> {periodLabel}</p>
+
+        <div className="mtm-table-wrap">
+          <table className="mtm-table">
+            <thead>
+              <tr>
+                <th>Area manager</th>
+                <th className="r">Target</th>
+                <th className="r">Collected</th>
+                <th className="r">Remaining</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamRows.map((r) => {
+                const cp = pctOf(r.collected, r.collTarget);
+                const remaining = Math.max(0, round2(r.collTarget - r.collected));
+                return (
+                  <tr key={r.id}>
+                    <td><b>{r.name}</b></td>
+                    <td className="r">{r.collTarget > 0 ? gbp(r.collTarget) : "-"}</td>
+                    <td className="r">{gbp(r.collected)}</td>
+                    <td className="r">{r.collTarget > 0 ? gbp(remaining) : "-"}</td>
+                    <td>
+                      {cp === null ? <span className="mtm-muted">No target</span> : (
+                        <div className="mtm-mini">
+                          <div className="mtm-bar">
+                            <i style={{ width: `${Math.min(100, cp)}%`, background: cp >= 100 ? "#16a34a" : "#d97706" }} />
+                          </div>
+                          <b>{cp}%</b>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td><b>Total</b></td>
+                <td className="r"><b>{gbp(teamTotals.collTarget)}</b></td>
+                <td className="r"><b>{gbp(teamTotals.collected)}</b></td>
+                <td className="r"><b>{gbp(Math.max(0, round2(teamTotals.collTarget - teamTotals.collected)))}</b></td>
+                <td><b>{pctText(teamTotals.collected, teamTotals.collTarget)}</b></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div className="mtm-act">
+          <button type="button" className="mt-btn ghost" onClick={() => setShowColl(false)}>Close</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div className="mgr-report">
@@ -247,27 +446,17 @@ export default function ManagerReportsPage() {
         </div>
       </section>
 
-      {/* KPI cards */}
-      <section className="mrep-kpis">
-        <div className="mrep-kpi k-blue">
-          <i className="fa-solid fa-file-invoice-dollar" />
-          <small>Invoiced</small><b>{gbp(data.invoiced)}</b>
-          <span>{data.invoices.length} invoice{data.invoices.length === 1 ? "" : "s"}</span>
-        </div>
+      {/* Cash and Cheque cards */}
+      <section className="mrep-kpis" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <div className="mrep-kpi k-green">
-          <i className="fa-solid fa-sack-dollar" />
-          <small>Collected</small><b>{gbp(data.collected)}</b>
-          <span>{data.payments.length} payment{data.payments.length === 1 ? "" : "s"}</span>
-        </div>
-        <div className="mrep-kpi k-red">
-          <i className="fa-solid fa-hourglass-half" />
-          <small>Outstanding</small><b>{gbp(data.outstanding)}</b>
-          <span>{data.clients.filter((c) => c.due > 0).length} client(s) owe</span>
+          <i className="fa-solid fa-money-bill-wave" />
+          <small>Cash</small><b>{gbp(data.cash)}</b>
+          <span>{data.cashCount} payment{data.cashCount === 1 ? "" : "s"}</span>
         </div>
         <div className="mrep-kpi k-gold">
-          <i className="fa-solid fa-percent" />
-          <small>Collection rate</small><b>{data.rate}%</b>
-          <div className="mrep-meter"><i style={{ width: `${data.rate}%` }} /></div>
+          <i className="fa-solid fa-money-check" />
+          <small>Cheque</small><b>{gbp(data.cheque)}</b>
+          <span>{data.chequeCount} payment{data.chequeCount === 1 ? "" : "s"}</span>
         </div>
       </section>
 
@@ -279,55 +468,120 @@ export default function ManagerReportsPage() {
             <small className="mt-period"><i className="fa-regular fa-calendar" /> {periodLabel}</small>
           </div>
           <div className="mt-head-act">
+            {canSetTargets && (
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
+                Area manager
+                <select
+                  value={managerId || ""}
+                  onChange={(e) => setSession({ managerId: e.target.value })}
+                  style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1px solid var(--border, #e2e8f0)", background: "transparent", color: "inherit", font: "inherit", fontSize: 13 }}
+                >
+                  {(s.areaManagers || []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </label>
+            )}
             {saved && <span className="mt-saved"><i className="fa-solid fa-circle-check" /> Saved</span>}
-            {!editing && (
-              <button type="button" className="mt-btn ghost" onClick={openEdit}>
-                <i className="fa-solid fa-pen" /> Edit targets
+            {canSetTargets && (
+              <button type="button" className="mt-btn ghost" onClick={() => setShowColl(true)}>
+                <i className="fa-solid fa-sack-dollar" /> Collection targets
+              </button>
+            )}
+            {canSetTargets && (
+              <button type="button" className="mt-btn primary" onClick={openEdit}>
+                <i className="fa-solid fa-bullseye" />
+                {targets.sales > 0 || targets.collection > 0 ? "Edit target" : "Set target"}
               </button>
             )}
           </div>
         </div>
 
-        {editing && (
-          <form className="mt-form" onSubmit={submitTargets}>
-            <label>
-              <span>Sales target</span>
-              <div className="mt-input">
-                <em>£</em>
-                <input type="number" min="0" step="0.01" value={salesInput} placeholder="10000"
-                  onChange={(e) => setSalesInput(e.target.value)} />
-              </div>
-            </label>
-            <label>
-              <span>Collection target</span>
-              <div className="mt-input">
-                <em>£</em>
-                <input type="number" min="0" step="0.01" value={collInput} placeholder="8000"
-                  onChange={(e) => setCollInput(e.target.value)} />
-              </div>
-            </label>
-            <div className="mt-form-act">
-              <button type="submit" className="mt-btn primary">
-                <i className="fa-solid fa-floppy-disk" /> Save targets
-              </button>
-              {(targets.sales > 0 || targets.collection > 0) && (
-                <button type="button" className="mt-btn ghost" onClick={() => setEditing(false)}>Cancel</button>
-              )}
-            </div>
-          </form>
-        )}
-
         <div className="mt-grid">
           <TargetCard
             title="Sales target" icon="fa-file-invoice-dollar" tone="#2563eb"
-            target={targets.sales} achieved={data.invoiced} onSet={openEdit}
+            target={targets.sales} achieved={data.invoiced} onSet={canSetTargets ? openEdit : null}
           />
           <TargetCard
             title="Collection target" icon="fa-sack-dollar" tone="#d97706"
-            target={targets.collection} achieved={data.collected} onSet={openEdit}
+            target={targets.collection} achieved={data.collected} onSet={canSetTargets ? openEdit : null}
+          />
+          <TargetCard
+            title="Total target" icon="fa-layer-group" tone="#a1122f"
+            target={totalTarget} achieved={totalAchieved} onSet={canSetTargets ? openEdit : null}
           />
         </div>
-        <p className="mt-note">Sales is measured by invoiced amount and collection by payments received in the selected period.</p>
+
+        {/* Targets by area manager (administrator only) */}
+        {canSetTargets && (
+          <div className="mt-team">
+            <h5 className="mt-team-title"><i className="fa-solid fa-users-gear" /> Targets by area manager</h5>
+            <div className="mrep-table-wrap">
+              <table className="mrep-table">
+                <thead>
+                  <tr>
+                    <th>Area manager</th>
+                    <th className="r">Sales target</th>
+                    <th className="r">Sales achieved</th>
+                    <th>Sales %</th>
+                    <th className="r">Collection target</th>
+                    <th className="r">Collected</th>
+                    <th>Collection %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamRows.map((r) => {
+                    const sp = pctOf(r.invoiced, r.salesTarget);
+                    const cp = pctOf(r.collected, r.collTarget);
+                    return (
+                      <tr key={r.id} className={r.id === managerId ? "mt-row-on" : ""}>
+                        <td>
+                          <button type="button" className="mt-link" onClick={() => setSession({ managerId: r.id })}>
+                            {r.name}
+                          </button>
+                        </td>
+                        <td className="r">{r.salesTarget > 0 ? gbp(r.salesTarget) : "-"}</td>
+                        <td className="r">{gbp(r.invoiced)}</td>
+                        <td>
+                          {sp === null ? "-" : (
+                            <div className="mt-mini">
+                              <div className="mt-bar"><i style={{ width: `${Math.min(100, sp)}%`, background: sp >= 100 ? "#16a34a" : "#2563eb" }} /></div>
+                              <b>{sp}%</b>
+                            </div>
+                          )}
+                        </td>
+                        <td className="r">{r.collTarget > 0 ? gbp(r.collTarget) : "-"}</td>
+                        <td className="r">{gbp(r.collected)}</td>
+                        <td>
+                          {cp === null ? "-" : (
+                            <div className="mt-mini">
+                              <div className="mt-bar"><i style={{ width: `${Math.min(100, cp)}%`, background: cp >= 100 ? "#16a34a" : "#d97706" }} /></div>
+                              <b>{cp}%</b>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><b>Total</b></td>
+                    <td className="r"><b>{gbp(teamTotals.salesTarget)}</b></td>
+                    <td className="r"><b>{gbp(teamTotals.invoiced)}</b></td>
+                    <td><b>{pctText(teamTotals.invoiced, teamTotals.salesTarget)}</b></td>
+                    <td className="r"><b>{gbp(teamTotals.collTarget)}</b></td>
+                    <td className="r"><b>{gbp(teamTotals.collected)}</b></td>
+                    <td><b>{pctText(teamTotals.collected, teamTotals.collTarget)}</b></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <p className="mt-note">
+          Sales is measured by invoiced amount and collection by payments received in the selected period.
+          {!canSetTargets && " Targets are set by the administrator."}
+        </p>
       </section>
 
       <div className="mrep-grid">
@@ -402,6 +656,9 @@ export default function ManagerReportsPage() {
           </div>
         )}
       </section>
+
+      {modal}
+      {collModal}
     </div>
   );
 }

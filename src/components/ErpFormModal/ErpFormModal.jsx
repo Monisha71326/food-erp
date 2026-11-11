@@ -15,9 +15,18 @@ import "./ErpFormModal.css";
  *  - every field gets a helpful placeholder (own `placeholder`, otherwise generated from key / type / label)
  *  - Ctrl/Cmd + Enter saves, Esc closes, smooth enter / exit animation
  *  - field = { key, label, type, options, required, wide, placeholder, min, section }
+ *  - type "multi" = several numbers in one field (one input per number + "Add number" button).
+ *    The value is stored as ONE string: "n1, n2, n3"
  */
 
 const filled = (value) => String(value ?? "").trim() !== "";
+
+/* "multi" field: stored string <-> list of rows (empty rows are kept while typing) */
+const MULTI_MAX = 5;
+const multiItems = (value) => {
+  const list = String(value ?? "").split(",").map((s) => s.trim());
+  return list.length ? list : [""];
+};
 
 /* [regex on "key type", icon classes, optional tone] */
 const ICON_RULES = [
@@ -130,6 +139,10 @@ const invalidMsg = (field, value) => {
   if (field.type === "email" && !/^\S+@\S+\.\S+$/.test(v)) return "Enter a valid email address";
   if (field.type === "url") { try { new URL(v); } catch { return "Enter a full link, e.g. https://example.com"; } }
   if (field.type === "tel" && v.replace(/\D/g, "").length < 7) return "Enter a valid phone number";
+  if (field.type === "multi") {
+    const bad = multiItems(v).some((n) => n && n.replace(/\D/g, "").length < 7);
+    if (bad) return "Enter a valid phone number in every row";
+  }
   return "";
 };
 
@@ -225,6 +238,46 @@ export default function ErpFormModal({
         <textarea rows="3" maxLength={500} placeholder={placeholder} {...common} />
         <span className="erp-fm-count">{String(value).length}/500</span>
       </div>;
+    }
+
+    /* several numbers: one input per number, "+ Add number" adds a row */
+    if (field.type === "multi") {
+      const items = multiItems(value);
+      const inputIcon = iconFor(field);
+      const message = touched[field.key] ? invalidMsg(field, value) : "";
+      const setItems = (list) => setValue(field.key, list.join(", "));
+      return <>
+        <div className="erp-fm-multi">
+          {items.map((num, idx) => (
+            <div className="erp-fm-multi-row" key={idx}>
+              <div className={`erp-fm-control${inputIcon ? " has-icon" : ""}${message ? " is-invalid" : ""}`}>
+                {inputIcon && <i className={`${inputIcon.cls} erp-fm-icon${inputIcon.tone ? ` tone-${inputIcon.tone}` : ""}`} aria-hidden="true" />}
+                <input
+                  type="tel"
+                  id={idx === 0 ? id : `${id}-${idx}`}
+                  name={idx === 0 ? field.key : `${field.key}-${idx}`}
+                  placeholder={placeholder}
+                  value={num}
+                  onChange={(e) => setItems(items.map((n, k) => (k === idx ? e.target.value.replace(/,/g, "") : n)))}
+                  onBlur={() => markTouched(field.key)}
+                />
+              </div>
+              {items.length > 1 && (
+                <button type="button" className="erp-fm-multi-del" title="Remove this number" aria-label={`Remove number ${idx + 1}`}
+                  onClick={() => setItems(items.filter((_, k) => k !== idx))}>
+                  <i className="fa-solid fa-xmark" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          ))}
+          {items.length < MULTI_MAX && (
+            <button type="button" className="erp-fm-add" onClick={() => setItems([...items, ""])}>
+              <i className="fa-solid fa-plus" aria-hidden="true" /> Add number
+            </button>
+          )}
+        </div>
+        {message && <p className="erp-fm-hint-text" role="alert">{message}</p>}
+      </>;
     }
 
     if (field.type === "select" && options.length > 0 && options.length <= 6) {

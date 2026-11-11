@@ -898,3 +898,42 @@
   .iv-done-ring path { stroke-dashoffset: 0; }
 }
 /* ===== SHARE-UI END ===== */
+/* ===== Service level % ===== */
+.invoices-page .iv-sl {
+  --sl: #ea580c;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--sl) 12%, transparent);
+  color: var(--sl); font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.invoices-page .iv-sl.green  { --sl: #16a34a; }
+.invoices-page .iv-sl.blue   { --sl: #2563eb; }
+.invoices-page .iv-sl.orange { --sl: #ea580c; }
+.invoices-page .iv-sl.red    { --sl: #dc2626; }
+
+/* balance due card ulla */
+.invoices-page .iv-stat .iv-sl { display: flex; width: fit-content; margin-top: 6px; font-size: 11.5px; }
+
+/* list column: mini bar */
+.invoices-page .iv-sl-bar {
+  width: 46px; height: 6px; border-radius: 999px;
+  background: var(--iv-border, #e2e8f0); overflow: hidden;
+}
+.invoices-page .iv-sl-bar i {
+  display: block; height: 100%; border-radius: 999px; background: var(--sl);
+  transition: width 0.5s ease;
+}
+
+/* Payment progress la service level row colour */
+.invoices-page .iv-prog-rows b.sl-green  { color: #16a34a; }
+.invoices-page .iv-prog-rows b.sl-blue   { color: #2563eb; }
+.invoices-page .iv-prog-rows b.sl-orange { color: #ea580c; }
+.invoices-page .iv-prog-rows b.sl-red    { color: #dc2626; }
+/* ===== VAT ===== */
+.invoices-page .iv-vat-note {
+  display: block; width: fit-content; margin-top: 6px; padding: 2px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent); color: var(--tone);
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0; text-transform: none;
+}
+.invoices-page .iv-prog-rows .vat span { color: #6d28d9; }
+.invoices-page .iv-prog-rows .vat b { color: #6d28d9; }

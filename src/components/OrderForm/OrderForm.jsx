@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { HubNotice } from "@/components/HubUI/HubUI.jsx";
-import { useHub, priceFor, placeOrder, client, gbp, promoForClient, promoCoversItem } from "@/data/orderHubStore.js";
+import { useHub, priceFor, placeOrder, client, gbp, promoForClient, promoCoversItem, haversineKm } from "@/data/orderHubStore.js";
+import { useMyLocation } from "@/utils/useMyLocation.js";
+import { confirmVisitType, AT_STORE_KM } from "@/utils/confirmVisitType.js";
 import "./OrderForm.css";
 
 /* PRODUCT IMAGES
@@ -18,6 +20,7 @@ const toQty = (v) => Math.min(MAX_QTY, Math.max(0, parseInt(v, 10) || 0));
 const initials = (t) =>
   String(t || "?").replace(/[^A-Za-z0-9 ]/g, "").trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 const tone = (code) => String(code || "").split("").reduce((a, ch) => a + ch.charCodeAt(0), 0) % 6;
+const fmtKm = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
 
 /* product photo: tries several extensions, shimmer while loading, fade-in, fallback tile */
 function ProductImg({ p, className = "" }) {
@@ -102,6 +105,11 @@ function RemarkBox({ id, className, icon, label, value, onChange, rows = 3, plac
  *   - Area manager order  (placedBy = "Area manager: ...")  -> TWO boxes: Client remark + Area manager remark
  *   The product popup box edits the "own" remark (client remark for a client, area manager remark for a manager).
  *
+ * ONSITE / OFFSITE (area manager orders only)
+ *   When the manager presses "Place order", the live location is compared with the client store.
+ *   Within 300 m -> saved as ONSITE (no popup).
+ *   Otherwise a confirm alert asks "place as OFFSITE order?" - Cancel = order is NOT saved.
+ *
  * Used by "Place Order" (client) and "Place Order for Client" (area manager).
  *   clientId   : whose prices / credit limit / promos are used
  *   placedBy   : text saved on the order
@@ -113,6 +121,7 @@ export default function OrderForm({ clientId, placedBy, showPromo = false, child
   const c = client(clientId);
   const topRef = useRef(null);
   const isManager = /^area manager/i.test(String(placedBy || ""));
+  const loc = useMyLocation(isManager); // live location (area managers only)
   const [step, setStep] = useState("shop"); // shop | cart
   const [qty, setQty] = useState({});
   const [draft, setDraft] = useState({});
@@ -138,6 +147,16 @@ export default function OrderForm({ clientId, placedBy, showPromo = false, child
   /* the remark the popup box edits = the placer's own remark */
   const ownRemark = isManager ? managerRemark : clientRemark;
   const setOwnRemark = isManager ? setManagerRemark : setClientRemark;
+
+  /* live onsite / offsite hint for the cart page (managers only) */
+  const kmToStore =
+    isManager && loc.pos && c?.lat != null && c?.lng != null
+      ? haversineKm(loc.pos.lat, loc.pos.lng, c.lat, c.lng)
+      : null;
+  const visitHint = !isManager ? null
+    : kmToStore == null ? { on: false, text: "Location not available - this will be an OFFSITE order." }
+    : kmToStore <= AT_STORE_KM ? { on: true, text: "You are at the store - ONSITE order." }
+    : { on: false, text: `You are ${fmtKm(kmToStore)} away - OFFSITE order.` };
 
   const setQuantity = (code, value) => setQty((q) => ({ ...q, [code]: toQty(value) }));
   const goStep = (to) => {
@@ -247,6 +266,15 @@ export default function OrderForm({ clientId, placedBy, showPromo = false, child
   const submit = async () => {
     const payload = rows.map((p) => ({ code: p.code, qty: qty[p.code] || 0 }));
     const code = applied && discount > 0 ? pr.code : "";
+
+    /* area manager: confirm ONSITE / OFFSITE before saving */
+    let visit = { visitType: "", visitDistanceKm: null };
+    if (isManager) {
+      const v = confirmVisitType(loc.pos, c, gbp(total));
+      if (!v) return; // manager pressed Cancel -> order is NOT placed
+      visit = v;
+    }
+
     setBusy(true);
     const r = await placeOrder({
       clientId,
@@ -255,12 +283,14 @@ export default function OrderForm({ clientId, placedBy, showPromo = false, child
       placedBy,
       clientRemark: clientRemark.trim(),
       managerRemark: isManager ? managerRemark.trim() : "",
+      visitType: visit.visitType,
+      visitDistanceKm: visit.visitDistanceKm,
     });
     setBusy(false);
     if (r.ok) {
       setQty({}); setDraft({}); setPromo(""); setPromoOn(false);
       setClientRemark(""); setManagerRemark(""); setMsg(null);
-      setPlaced(r.msg);
+      setPlaced(r.msg + (visit.visitType ? ` (${visit.visitType.toUpperCase()})` : ""));
     } else {
       setMsg({ ok: false, text: r.msg });
     }
@@ -399,6 +429,13 @@ export default function OrderForm({ clientId, placedBy, showPromo = false, child
                     onChange={setManagerRemark}
                     placeholder="Your own note about this order..."
                   />
+                )}
+
+                {/* ----- live ONSITE / OFFSITE hint (area manager only) ----- */}
+                {visitHint && (
+                  <small className={visitHint.on ? "ok" : "bad"}>
+                    <i className={`fa-solid ${visitHint.on ? "fa-location-crosshairs" : "fa-location-pin-lock"}`} /> {visitHint.text}
+                  </small>
                 )}
 
                 <button type="button" className="oform-submit" onClick={submit} disabled={busy || lines.length === 0}>

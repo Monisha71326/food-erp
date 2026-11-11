@@ -140,10 +140,19 @@
    minmax(0, 1fr) = columns can shrink, so cards never overflow the page */
 .grid { display: grid; gap: 14px; margin-bottom: 14px; }
 .grid > * { min-width: 0; }
-.kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.kpi-grid { grid-template-columns: repeat(var(--kpi-n, 4), minmax(0, 1fr)); gap: 10px; }
 .mini-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .chart-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
-.bottom-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1fr); }
+/* bottom row: 2 cards now (Low Stock Alerts hidden) */
+.bottom-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+
+/* fewer than 5 small cards (some hidden): same card style as the KPI row, but the cards share the full row (no empty space) */
+.mini-grid.mini-few { grid-template-columns: repeat(var(--mini-n, 2), minmax(0, 1fr)); gap: 10px; }
+.mini-few > * { padding-left: 14px; padding-right: 14px; gap: 10px; }
+.mini-few > * * { min-width: 0; }
+.mini-few svg { max-width: 110px; height: auto; }
+.mini-few canvas { max-width: 110px; }
+.mini-few > * span, .mini-few > * small { white-space: normal; }
 
 /* ---- KPI row: 4 cards always in ONE row, content shrinks to fit ---- */
 .kpi-grid > * {
@@ -182,7 +191,6 @@
 .dash-anim .chart-grid > :nth-child(2) { animation-delay: .42s; }
 .dash-anim .bottom-grid > :nth-child(1) { animation-delay: .50s; }
 .dash-anim .bottom-grid > :nth-child(2) { animation-delay: .57s; }
-.dash-anim .bottom-grid > :nth-child(3) { animation-delay: .64s; }
 
 /* 2. hover: card lifts, shadow grows, maroon line draws across the top */
 .dash-anim .grid > *:hover {
@@ -196,7 +204,7 @@
 }
 .dash-anim .grid > *:hover::before { transform: scaleX(1); }
 
-/* 3. rows inside the table cards (Low Stock, Recent Orders) slide in one by one */
+/* 3. rows inside the table cards (Recent Orders) slide in one by one */
 .dash-anim .mini-table tbody tr { animation: rowIn .45s ease-out backwards; transition: background .15s; }
 .dash-anim .mini-table tbody tr:nth-child(1) { animation-delay: .70s; }
 .dash-anim .mini-table tbody tr:nth-child(2) { animation-delay: .78s; }
@@ -219,7 +227,7 @@
 /* newest activity: pulsing dot */
 .dash-anim .timeline li:first-child .tl-dot { animation: dotPulse 1.8s ease-out infinite; }
 
-/* 5. "Low Stock" pills pulse softly so they catch the eye */
+/* 5. "Low Stock" pills pulse softly (kept for when Low Stock Alerts is shown again) */
 .dash-anim .lowstock-card .mini-table td:last-child > * { animation: pillPulse 2.2s ease-in-out infinite; }
 
 /* 6. "View All ->" arrow slides on hover */
@@ -266,7 +274,6 @@
 @media (max-width: 1280px) {
   .mini-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bottom-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .activity-card { grid-column: span 2; }
 }
 
 /* ---- Tablet (<= 1100px) ---- */
@@ -281,7 +288,6 @@
 
 /* ---- Phone (<= 640px) ---- */
 @media (max-width: 640px) {
-  .kpi-grid, .mini-grid, .bottom-grid { grid-template-columns: minmax(0, 1fr); }
-  .activity-card { grid-column: auto; }
+  .kpi-grid, .mini-grid, .mini-grid.mini-few, .bottom-grid { grid-template-columns: minmax(0, 1fr); }
   .date-btn span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

@@ -89,3 +89,20 @@
   .stc-sum { gap: 16px; }
   .stc-sum b { font-size: 15px; }
 }
+/* custom calendar range */
+.stc-custom {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 12px; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  animation: stcUp .3s ease both;
+}
+.stc-custom label { display: grid; gap: 4px; }
+.stc-custom label span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.stc-custom input {
+  height: 34px; padding: 0 8px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 12.5px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.stc-custom input:focus { outline: 0; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(154, 15, 46, 0.12); }
+.stc-custom em { font-style: normal; font-size: 11.5px; color: #dc2626; }

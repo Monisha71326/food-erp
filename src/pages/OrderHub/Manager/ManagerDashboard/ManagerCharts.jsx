@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { gbp } from "@/data/orderHubStore.js";
 import "./ManagerCharts.css";
 
+/* true = show, false = hide */
+const SHOW_RECENT_ORDER_VALUE = false;
+
 const PALETTE = ["#a1122f", "#1e2a4a", "#e0a526", "#2f9e6f", "#2563eb", "#8b94a7"];
 
 const statusColor = (s) => {
@@ -215,7 +218,7 @@ export default function ManagerCharts({ orders, visits, clientName, orderTotal }
     <div className="mg-grid">
       <SalesByClient orders={orders} clientName={clientName} orderTotal={orderTotal} />
       <OrderStatus orders={orders} />
-      <OrderValueTrend orders={orders} orderTotal={orderTotal} />
+      {SHOW_RECENT_ORDER_VALUE && <OrderValueTrend orders={orders} orderTotal={orderTotal} />}
       <VisitGauge visits={visits} />
     </div>
   );

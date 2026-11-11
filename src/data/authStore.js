@@ -5,9 +5,10 @@
  * or sessionStorage (until the tab closes).
  *
  * NOTE: because there is no backend, this protects the UI, not real data. Connect a real API later
- * and swap the functions in this file — the screens only use: initAuth, login, register, currentUser, logout.
+ * and swap the functions in this file — the screens only use:
+ * initAuth, login, register, currentUser, logout, verifyResetIdentity, resetPassword.
  */
-import { createClientAccount, createManagerAccount, listClients } from "@/data/localDb.js";
+import { createClientAccount, createManagerAccount, listClients, getAccountContact } from "@/data/localDb.js";
 
 const USERS_KEY = "meg-users";
 const SESSION_KEY = "meg-session";
@@ -94,6 +95,77 @@ export async function login({ username, password, role, remember }) {
   a.n = 0;
   startSession(u, remember);
   return { ok: true, user: publicUser(u) };
+}
+
+/* ---------- forgot password ----------
+   No server = no email. The person proves who they are with a detail only they know:
+     client  -> the email registered on the account
+     manager -> full name (or registered email)
+     admin / erp -> the admin access code
+   Then a short-lived reset token (kept in memory only) lets them choose a new password. */
+const RESET_TTL = 10 * 60 * 1000; // 10 minutes
+const resetTokens = {};   // token -> { username, until }
+const resetAttempts = {}; // username -> { n, until }
+const VERIFY_FAIL = "We could not verify those details. Check your username, role and detail, then try again.";
+
+/* -> { ok:true, token } | { ok:false, msg } */
+export async function verifyResetIdentity({ username, role, proof }) {
+  const name = norm(username);
+  const given = String(proof || "").trim();
+  if (!name) return { ok: false, msg: "Enter your username." };
+  if (!given) return { ok: false, msg: "Enter the verification detail asked for." };
+
+  const a = resetAttempts[name] || (resetAttempts[name] = { n: 0, until: 0 });
+  if (Date.now() < a.until) return { ok: false, msg: `Too many attempts. Try again in ${Math.ceil((a.until - Date.now()) / 1000)}s.` };
+
+  const u = users().find((x) => x.username === name);
+  let good = false;
+  if (u && u.role === role) {
+    if (u.role === "client") {
+      good = norm(getAccountContact(u.linkedId)?.email) === norm(given);
+    } else if (u.role === "manager") {
+      const email = norm(getAccountContact(u.linkedId)?.email);
+      good = norm(u.name) === norm(given) || (!!email && email === norm(given));
+    } else {
+      good = given === ADMIN_ACCESS_CODE;
+    }
+  }
+
+  if (!good) {
+    a.n += 1;
+    if (a.n >= 5) { a.n = 0; a.until = Date.now() + 30000; return { ok: false, msg: "Too many failed attempts. Locked for 30 seconds." }; }
+    return { ok: false, msg: VERIFY_FAIL };
+  }
+
+  a.n = 0;
+  const token = newSalt();
+  resetTokens[token] = { username: name, until: Date.now() + RESET_TTL };
+  return { ok: true, token };
+}
+
+/* -> { ok:true } | { ok:false, msg, expired? } */
+export async function resetPassword({ token, password, confirm }) {
+  const t = resetTokens[token];
+  if (!t || Date.now() > t.until) {
+    delete resetTokens[token];
+    return { ok: false, expired: true, msg: "This reset session has expired. Please verify again." };
+  }
+  if (String(password || "").length < MIN_PASSWORD) return { ok: false, msg: `Password must be at least ${MIN_PASSWORD} characters.` };
+  if (password !== confirm) return { ok: false, msg: "Passwords do not match." };
+
+  const list = users();
+  const idx = list.findIndex((x) => x.username === t.username);
+  if (idx < 0) {
+    delete resetTokens[token];
+    return { ok: false, expired: true, msg: "This reset session has expired. Please verify again." };
+  }
+  const salt = newSalt();
+  list[idx] = { ...list[idx], salt, hash: await hashPassword(password, salt) };
+  saveUsers(list);
+
+  delete resetTokens[token];
+  delete attempts[t.username]; // clear any login lock for this user
+  return { ok: true };
 }
 
 export const registrableClients = () => listClients();
